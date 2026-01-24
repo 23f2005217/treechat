@@ -6,7 +6,7 @@ from contextlib import asynccontextmanager
 
 from server.config import settings
 from server.models import Task, Message, Context, Project
-from server.routes import tasks, messages, contexts
+from server.routes import tasks, messages, contexts, chat
 
 
 @asynccontextmanager
@@ -21,6 +21,8 @@ async def lifespan(app: FastAPI):
     )
     
     print(f"✅ Connected to MongoDB: {settings.DATABASE_NAME}")
+    print(f"🚀 TreeChat API running at http://{settings.HOST}:{settings.PORT}")
+    print(f"📚 API Docs: http://{settings.HOST}:{settings.PORT}/docs")
     
     yield
     
@@ -31,15 +33,15 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="TreeChat API",
-    description="AI-powered declarative task and context manager",
-    version="0.1.0",
+    description="AI-powered declarative task and context manager with tree-based chat",
+    version="0.2.0",
     lifespan=lifespan
 )
 
-# CORS middleware - allow all origins for Replit proxy
+# CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=settings.CORS_ORIGINS + ["*"],  # Allow configured origins + wildcard for development
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -49,17 +51,31 @@ app.add_middleware(
 app.include_router(tasks.router, prefix="/api/tasks", tags=["tasks"])
 app.include_router(messages.router, prefix="/api/messages", tags=["messages"])
 app.include_router(contexts.router, prefix="/api/contexts", tags=["contexts"])
+app.include_router(chat.router, prefix="/api/chat", tags=["chat"])
 
 
 @app.get("/")
 async def root():
     return {
-        "message": "TreeChat API",
-        "version": "0.1.0",
-        "docs": "/docs"
+        "message": "TreeChat API - AI-powered task manager",
+        "version": "0.2.0",
+        "features": [
+            "Declarative task input",
+            "Auto-grouping by domain",
+            "Tree-based chat",
+            "Time-aware urgency",
+            "Natural language queries"
+        ],
+        "endpoints": {
+            "docs": "/docs",
+            "tasks": "/api/tasks",
+            "chat": "/api/chat",
+            "messages": "/api/messages",
+            "contexts": "/api/contexts"
+        }
     }
 
 
 @app.get("/health")
 async def health_check():
-    return {"status": "healthy"}
+    return {"status": "healthy", "service": "treechat-api"}
