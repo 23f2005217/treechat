@@ -69,3 +69,11 @@ htmlcov/
 # MongoDB
 data/
 mongo-data/
+
+# Replit
+.pythonlibs/
+.upm/
+.cache/
+.local/
+uv.lock
+pyproject.toml
