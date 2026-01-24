@@ -26,6 +26,8 @@ class ChatResponse(BaseModel):
     created_tasks: List[str]  # Task IDs
 
 
+from server.llm import generate_response
+
 @router.post("/", response_model=ChatResponse)
 async def chat(request: ChatRequest):
     """Process natural language input and extract tasks"""
@@ -74,8 +76,12 @@ async def chat(request: ChatRequest):
             'urgency': task.urgency.value
         })
     
-    # 4. Generate response
-    response_text = _generate_response(task_data, created_tasks)
+    # 4. Generate response using LLM if possible, otherwise fallback
+    try:
+        messages = [{"role": "user", "content": request.message}]
+        response_text = await generate_response(messages)
+    except Exception:
+        response_text = _generate_response(task_data, created_tasks)
     
     # 5. Create assistant message
     assistant_message = Message(
