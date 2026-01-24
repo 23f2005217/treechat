@@ -13,6 +13,7 @@ class Settings(BaseSettings):
     
     # API Keys
     OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY", "")
+    NVIDIA_API_KEY: str = os.getenv("NVIDIA_API_KEY", "")
     
     # Server
     HOST: str = "0.0.0.0"
