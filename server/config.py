@@ -5,7 +5,7 @@ from typing import List
 
 class Settings(BaseSettings):
     # MongoDB
-    MONGODB_URL: str = os.getenv("MONGODB_URL", "mongodb://localhost:27017")
+    MONGODB_URL: str = os.getenv("MONGODB_URL", os.getenv("DATABASE_URL", "mongodb://localhost:27017"))
     DATABASE_NAME: str = "treechat"
     
     # CORS - allow all origins for Replit proxy
