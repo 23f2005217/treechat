@@ -17,9 +17,11 @@ const AppLayout = () => {
       {/* Sidebar */}
       <div className="w-64 border-r bg-card flex flex-col">
         <div className="p-6">
-          <h1 className="text-xl font-bold tracking-tight text-primary">TreeChat</h1>
+          <h1 className="text-xl font-bold tracking-tight text-primary">
+            TreeChat
+          </h1>
         </div>
-        
+
         <nav className="flex-1 px-4 space-y-2">
           {navItems.map((item) => (
             <Link
@@ -27,9 +29,9 @@ const AppLayout = () => {
               to={item.path}
               className={cn(
                 "flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors",
-                location.pathname === item.path 
-                  ? "bg-primary text-primary-foreground" 
-                  : "hover:bg-accent hover:text-accent-foreground"
+                location.pathname === item.path
+                  ? "bg-primary text-primary-foreground"
+                  : "hover:bg-accent hover:text-accent-foreground",
               )}
             >
               <item.icon className="w-4 h-4" />
