@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import axios from "axios";
-import { Send, Plus, ChevronRight, ChevronDown, MessageSquare, CheckSquare, Settings as SettingsIcon, Search as SearchIcon } from "lucide-react";
-import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
+import { Send, ChevronRight, ChevronDown } from "lucide-react";
+import { cn } from "../lib/utils";
+import { Button } from "../components/ui/button";
 
 interface Message {
   id: string;
@@ -35,7 +35,7 @@ const HomePage = () => {
     if (!input.trim()) return;
     setLoading(true);
     try {
-      const response = await axios.post("/api/chat/", { message: input });
+      await axios.post("/api/chat/", { message: input });
       setInput("");
       fetchMessages();
     } catch (error) {

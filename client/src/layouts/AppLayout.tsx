@@ -1,6 +1,6 @@
 import { Outlet, Link, useLocation } from "react-router-dom";
-import { MessageSquare, CheckSquare, Search, Settings, Home } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { CheckSquare, Search, Settings, Home } from "lucide-react";
+import { cn } from "../lib/utils";
 
 const AppLayout = () => {
   const location = useLocation();
