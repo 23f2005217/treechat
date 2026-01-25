@@ -62,6 +62,9 @@ class TaskExtractor:
         """Extract structured task data from natural language text"""
         text_lower = text.lower()
         
+        # Enhanced extraction logic could go here
+        # For now, we use the rule-based approach which is already quite comprehensive
+        
         return {
             'title': self._extract_title(text),
             'description': text,
