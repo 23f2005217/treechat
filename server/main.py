@@ -12,36 +12,43 @@ from server.routes import tasks, messages, contexts, chat
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup: Initialize MongoDB connection
-    client = AsyncIOMotorClient(settings.MONGODB_URL)
-    database = client[settings.DATABASE_NAME]
-    
-    await init_beanie(
-        database=database,
-        document_models=[Task, Message, Context, Project]
-    )
-    
-    print(f"✅ Connected to MongoDB: {settings.DATABASE_NAME}")
+    client = None
+    try:
+        client = AsyncIOMotorClient(settings.MONGODB_URL)
+        database = client[settings.DATABASE_NAME]
+
+        await init_beanie(
+            database=database, document_models=[Task, Message, Context, Project]
+        )
+
+        print(f"✅ Connected to MongoDB: {settings.DATABASE_NAME}")
+    except Exception as e:
+        print(f"⚠️  MongoDB connection failed: {e}")
+        print("⚠️  Running in limited mode without database")
+
     print(f"🚀 TreeChat API running at http://{settings.HOST}:{settings.PORT}")
     print(f"📚 API Docs: http://{settings.HOST}:{settings.PORT}/docs")
-    
+
     yield
-    
-    # Shutdown: Close MongoDB connection
-    client.close()
-    print("❌ MongoDB connection closed")
+
+    # Shutdown: Close MongoDB connection if it was established
+    if client:
+        client.close()
+        print("❌ MongoDB connection closed")
 
 
 app = FastAPI(
     title="TreeChat API",
     description="AI-powered declarative task and context manager with tree-based chat",
     version="0.2.0",
-    lifespan=lifespan
+    lifespan=lifespan,
 )
 
 # CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.CORS_ORIGINS + ["*"],  # Allow configured origins + wildcard for development
+    allow_origins=settings.CORS_ORIGINS
+    + ["*"],  # Allow configured origins + wildcard for development
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -64,15 +71,15 @@ async def root():
             "Auto-grouping by domain",
             "Tree-based chat",
             "Time-aware urgency",
-            "Natural language queries"
+            "Natural language queries",
         ],
         "endpoints": {
             "docs": "/docs",
             "tasks": "/api/tasks",
             "chat": "/api/chat",
             "messages": "/api/messages",
-            "contexts": "/api/contexts"
-        }
+            "contexts": "/api/contexts",
+        },
     }
 
 

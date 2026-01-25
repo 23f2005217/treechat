@@ -16,10 +16,6 @@ interface Task {
 const TasksPage = () => {
   const [tasks, setTasks] = useState<Task[]>([]);
 
-  useEffect(() => {
-    fetchTasks();
-  }, []);
-
   const fetchTasks = async () => {
     try {
       const response = await axios.get("/api/tasks/");
@@ -28,6 +24,10 @@ const TasksPage = () => {
       console.error("Error fetching tasks:", error);
     }
   };
+
+  useEffect(() => {
+    fetchTasks();
+  }, []);
 
   const toggleTask = async (id: string, completed: boolean) => {
     try {

@@ -1,12 +1,10 @@
-"""AI chat endpoint for declarative task input"""
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter
 from pydantic import BaseModel
 from typing import Optional, List
 from datetime import datetime
 
-from server.models import (
-    Task, Message, Context, MessageRole, MessageCreate
-)
+from server.llm import generate_response
+from server.models import Task, Message, Context, MessageRole, MessageCreate
 from server.utils.nlp import task_extractor
 from server.utils.urgency import urgency_engine
 
@@ -26,105 +24,107 @@ class ChatResponse(BaseModel):
     created_tasks: List[str]  # Task IDs
 
 
-from server.llm import generate_response
-
 @router.post("/", response_model=ChatResponse)
 async def chat(request: ChatRequest):
     """Process natural language input and extract tasks"""
-    
+
     # 1. Create user message
     user_message = Message(
         content=request.message,
         role=MessageRole.USER,
         parent_id=request.parent_message_id,
-        context_id=request.context_id
+        context_id=request.context_id,
     )
     await user_message.insert()
-    
+
     # 2. Extract task data from message
     task_data = task_extractor.extract(request.message)
-    
+
     # 3. Create task if task-like content detected
     created_tasks = []
     entities = []
-    
-    if task_data['domain'] or task_data['due_date'] or task_data['due_fuzzy']:
+
+    if task_data["domain"] or task_data["due_date"] or task_data["due_fuzzy"]:
         # Create task
         task = Task(
-            title=task_data['title'],
-            description=task_data['description'],
-            domain=task_data['domain'],
-            task_type=task_data['task_type'],
-            due_date=task_data['due_date'],
-            due_fuzzy=task_data['due_fuzzy'],
-            requested_by=task_data['requested_by'],
-            tags=task_data['tags'],
-            source_message_id=str(user_message.id)
+            title=task_data["title"],
+            description=task_data["description"],
+            domain=task_data["domain"],
+            task_type=task_data["task_type"],
+            due_date=task_data["due_date"],
+            due_fuzzy=task_data["due_fuzzy"],
+            requested_by=task_data["requested_by"],
+            tags=task_data["tags"],
+            source_message_id=str(user_message.id),
         )
-        
+
         # Compute urgency
         task.urgency = urgency_engine.compute_urgency(task)
-        
+
         await task.insert()
         created_tasks.append(str(task.id))
-        
-        entities.append({
-            'type': 'task',
-            'id': str(task.id),
-            'title': task.title,
-            'domain': task.domain.value,
-            'urgency': task.urgency.value
-        })
-    
+
+        entities.append(
+            {
+                "type": "task",
+                "id": str(task.id),
+                "title": task.title,
+                "domain": task.domain.value,
+                "urgency": task.urgency.value,
+            }
+        )
+
     # 4. Generate response using LLM if possible, otherwise fallback
     try:
         messages = [{"role": "user", "content": request.message}]
         response_text = await generate_response(messages)
     except Exception:
         response_text = _generate_response(task_data, created_tasks)
-    
+
     # 5. Create assistant message
     assistant_message = Message(
         content=response_text,
         role=MessageRole.ASSISTANT,
         parent_id=str(user_message.id),
         context_id=request.context_id,
-        extracted_entities=entities
+        extracted_entities=entities,
     )
     await assistant_message.insert()
-    
+
     # Update user message with child
     user_message.children_ids.append(str(assistant_message.id))
     user_message.extracted_entities = entities
     await user_message.save()
-    
+
     return ChatResponse(
         response=response_text,
         message_id=str(assistant_message.id),
         extracted_entities=entities,
-        created_tasks=created_tasks
+        created_tasks=created_tasks,
     )
 
 
 def _generate_response(task_data: dict, created_tasks: List[str]) -> str:
     """Generate natural language response"""
     if not created_tasks:
-        return "Got it! I'm tracking that for you. Let me know if you need anything else."
-    
-    title = task_data['title']
-    domain = task_data['domain'].value
-    
+        return (
+            "Got it! I'm tracking that for you. Let me know if you need anything else."
+        )
+
+    title = task_data["title"]
+    domain = task_data["domain"].value
+
     response = f"✓ Added to {domain}: **{title}**"
-    
-    if task_data['due_date']:
-        due_str = task_data['due_date'].strftime('%B %d, %Y')
+
+    if task_data["due_date"]:
+        due_str = task_data["due_date"].strftime("%B %d, %Y")
         response += f" (due: {due_str})"
-    elif task_data['due_fuzzy']:
+    elif task_data["due_fuzzy"]:
         response += f" (due: {task_data['due_fuzzy']})"
-    
-    if task_data['requested_by']:
+
+    if task_data["requested_by"]:
         response += f" — requested by {task_data['requested_by']}"
-    
+
     return response
 
 
@@ -133,32 +133,26 @@ async def get_next_action(time_available: int = 60):
     """Get the best next task to work on"""
     # Get all pending tasks
     tasks = await Task.find(Task.completed == False).to_list()
-    
+
     if not tasks:
-        return {
-            'message': 'No pending tasks! You\'re all caught up 🎉',
-            'task': None
-        }
-    
+        return {"message": "No pending tasks! You're all caught up 🎉", "task": None}
+
     # Get recommended task
     next_task = urgency_engine.get_next_action(tasks, time_available)
-    
+
     if not next_task:
-        return {
-            'message': 'No suitable tasks for the available time',
-            'task': None
-        }
-    
+        return {"message": "No suitable tasks for the available time", "task": None}
+
     return {
-        'message': f'Best next action: {next_task.title}',
-        'task': {
-            'id': str(next_task.id),
-            'title': next_task.title,
-            'domain': next_task.domain.value,
-            'urgency': next_task.urgency.value,
-            'estimated_effort': next_task.estimated_effort
+        "message": f"Best next action: {next_task.title}",
+        "task": {
+            "id": str(next_task.id),
+            "title": next_task.title,
+            "domain": next_task.domain.value,
+            "urgency": next_task.urgency.value,
+            "estimated_effort": next_task.estimated_effort,
         },
-        'alternatives': []  # TODO: Get 2-3 alternative tasks
+        "alternatives": [],  # TODO: Get 2-3 alternative tasks
     }
 
 
@@ -166,37 +160,39 @@ async def get_next_action(time_available: int = 60):
 async def natural_query(query: str):
     """Answer natural language queries about tasks"""
     query_lower = query.lower()
-    
+
     # Parse query intent
-    if 'college' in query_lower or 'assignment' in query_lower:
-        tasks = await Task.find(Task.domain == 'college', Task.completed == False).to_list()
-        return {'tasks': tasks, 'count': len(tasks)}
-    
-    elif 'household' in query_lower or 'home' in query_lower:
-        tasks = await Task.find(Task.domain == 'household', Task.completed == False).to_list()
-        return {'tasks': tasks, 'count': len(tasks)}
-    
-    elif 'urgent' in query_lower or 'important' in query_lower:
+    if "college" in query_lower or "assignment" in query_lower:
         tasks = await Task.find(
-            Task.urgency.in_(['high', 'critical']),
-            Task.completed == False
+            Task.domain == "college", Task.completed == False
         ).to_list()
-        return {'tasks': tasks, 'count': len(tasks)}
-    
-    elif 'mother' in query_lower or 'mom' in query_lower:
+        return {"tasks": tasks, "count": len(tasks)}
+
+    elif "household" in query_lower or "home" in query_lower:
         tasks = await Task.find(
-            Task.requested_by == 'mother',
-            Task.completed == False
+            Task.domain == "household", Task.completed == False
         ).to_list()
-        return {'tasks': tasks, 'count': len(tasks)}
-    
-    elif any(word in query_lower for word in ['pending', 'todo', 'all']):
+        return {"tasks": tasks, "count": len(tasks)}
+
+    elif "urgent" in query_lower or "important" in query_lower:
+        tasks = await Task.find(
+            Task.urgency.in_(["high", "critical"]), Task.completed == False
+        ).to_list()
+        return {"tasks": tasks, "count": len(tasks)}
+
+    elif "mother" in query_lower or "mom" in query_lower:
+        tasks = await Task.find(
+            Task.requested_by == "mother", Task.completed == False
+        ).to_list()
+        return {"tasks": tasks, "count": len(tasks)}
+
+    elif any(word in query_lower for word in ["pending", "todo", "all"]):
         tasks = await Task.find(Task.completed == False).to_list()
-        return {'tasks': tasks, 'count': len(tasks)}
-    
+        return {"tasks": tasks, "count": len(tasks)}
+
     else:
         return {
-            'message': 'I can help you query tasks by: domain (college/household), urgency, person, or show all pending tasks.',
-            'tasks': [],
-            'count': 0
+            "message": "I can help you query tasks by: domain (college/household), urgency, person, or show all pending tasks.",
+            "tasks": [],
+            "count": 0,
         }
