@@ -1,16 +1,20 @@
-# TreeChat - replit.md
+## Recent Changes
 
-## Overview
+### January 25, 2026
+- **Frontend Core Implementation**:
+  - Implemented `AppLayout` with navigation.
+  - Built `HomePage` featuring a recursive tree-based chat interface.
+  - Created `TasksPage` to display and manage tasks with urgency-based styling.
+  - Setup `react-router-dom` for application routing.
+  - Configured Vite with a proxy to the FastAPI backend.
+- **Backend Enhancements**:
+  - Integrated OpenAI LLM for natural language response generation in `server/llm.py`.
+  - Updated `chat` endpoint to leverage LLM for responses with a rule-based fallback.
+  - Configured server to run on port 5000 with permissive CORS for Replit.
+- **Project Configuration**:
+  - Updated `.replit` and deployment settings for the VM environment.
+  - Resolved import issues and path aliases in the frontend.
 
-TreeChat is an AI-powered personal task and context manager with a tree-based chat interface. Users can input tasks using natural language (e.g., "mother asked to refill cylinder gas by next 3 days"), and the system automatically extracts structured task data, auto-groups by domain, computes urgency, and organizes everything in a branching conversation tree.
-
-The core value proposition is "declarative input" - users speak naturally instead of manually managing lists, and the system handles categorization, time-awareness, and organization automatically.
-
-## User Preferences
-
-Preferred communication style: Simple, everyday language.
-
-## System Architecture
 
 ### Backend (FastAPI + MongoDB)
 

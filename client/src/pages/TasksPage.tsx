@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import axios from "axios";
-import { CheckCircle2, Circle, Clock, Tag, AlertCircle } from "lucide-react";
-import { cn } from "@/lib/utils";
-import { Badge } from "@/components/ui/badge";
+import { CheckCircle2, Circle, Clock, Tag } from "lucide-react";
+import { cn } from "../lib/utils";
+import { Badge } from "../components/ui/badge";
 
 interface Task {
   id: string;
