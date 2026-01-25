@@ -75,5 +75,3 @@ mongo-data/
 .upm/
 .cache/
 .local/
-uv.lock
-pyproject.toml

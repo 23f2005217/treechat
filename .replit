@@ -1,4 +1,4 @@
-modules = ["python-3.11"]
+modules = ["nodejs-20", "python-3.11"]
 [agent]
 expertMode = true
 
@@ -7,29 +7,32 @@ channel = "stable-25_05"
 packages = ["libxcrypt", "vim-full"]
 
 [workflows]
-runButton = "Project"
+runButton = "Dev"
 
 [[workflows.workflow]]
-name = "Project"
+name = "Dev"
+author = "agent"
 mode = "parallel"
-author = "agent"
-
-[[workflows.workflow.tasks]]
-task = "workflow.run"
-args = "Start Server"
-
-[[workflows.workflow]]
-name = "Start Server"
-author = "agent"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "python -m uvicorn server.main:app --host 0.0.0.0 --port 5000 --reload"
 waitForPort = 5000
 
-[workflows.workflow.metadata]
-outputType = "webview"
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "cd client && npm run dev -- --host 0.0.0.0 --port 5173"
+waitForPort = 5173
 
 [[ports]]
 localPort = 5000
+externalPort = 5000
+
+[[ports]]
+localPort = 5173
 externalPort = 80
+
+[deployment]
+deploymentTarget = "vm"
+run = ["bash", "-c", "python -m uvicorn server.main:app --host 0.0.0.0 --port 5000"]
+build = ["bash", "-c", "cd client && npm install && npm run build && cd ../server && pip install -r requirements.txt"]
