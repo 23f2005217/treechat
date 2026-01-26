@@ -106,6 +106,12 @@ class Message(Document):
         ]
 
 
+class ForkType(str, Enum):
+    SUMMARY = "summary"
+    FULL = "full"
+    EMPTY = "empty"
+
+
 class Context(Document):
     """Conversation context / session"""
     title: str = "New Conversation"
@@ -113,6 +119,11 @@ class Context(Document):
     
     # Tree root
     root_message_id: Optional[str] = None
+    
+    # Nested thread support
+    parent_context_id: Optional[str] = None  # Parent thread ID for nesting
+    forked_from_message_id: Optional[str] = None  # Message this was forked from
+    fork_type: Optional[ForkType] = None  # How context was copied
     
     # Metadata
     created_at: datetime = Field(default_factory=datetime.utcnow)
@@ -129,6 +140,7 @@ class Context(Document):
         indexes = [
             "created_at",
             "last_accessed",
+            "parent_context_id",
         ]
 
 
@@ -190,3 +202,11 @@ class MessageCreate(BaseModel):
 class ContextCreate(BaseModel):
     title: str = "New Conversation"
     description: Optional[str] = None
+    parent_context_id: Optional[str] = None
+
+
+class ForkContextRequest(BaseModel):
+    source_context_id: str
+    fork_from_message_id: Optional[str] = None
+    fork_type: ForkType = ForkType.SUMMARY
+    title: Optional[str] = None
