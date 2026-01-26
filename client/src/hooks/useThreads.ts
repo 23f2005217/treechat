@@ -1,7 +1,7 @@
 import { useEffect, useCallback } from "react";
 import axios from "axios";
 import { useSidebarStore } from "../store/useSidebarStore";
-import { MessageSquare } from "lucide-react";
+import { MessageSquare, Folder } from "lucide-react";
 
 interface BackendContext {
   _id: string;
@@ -11,7 +11,7 @@ interface BackendContext {
 }
 
 export function useThreads() {
-  const { setTreeData, treeData } = useSidebarStore();
+  const setTreeData = useSidebarStore((state) => state.setTreeData);
 
   const fetchThreads = useCallback(async () => {
     try {
@@ -25,28 +25,36 @@ export function useThreads() {
         updatedAt: new Date(ctx.updated_at).getTime(),
       }));
 
-      const existingFolders = treeData.filter((item) => item.type === "folder");
-      const allThreadsFolder = existingFolders.find((f) => f.id === "all");
-      
-      if (allThreadsFolder) {
-        const updatedFolders = existingFolders.map((folder) => {
-          if (folder.id === "all") {
-            return { ...folder, children: threads };
-          }
-          return folder;
-        });
-        setTreeData(updatedFolders);
-      } else {
-        setTreeData([
-          {
-            id: "all",
-            name: "All Threads",
-            type: "folder" as const,
-            children: threads,
-          },
-          ...threads,
-        ]);
-      }
+      setTreeData([
+        {
+          id: "all",
+          name: "All Threads",
+          icon: Folder,
+          type: "folder" as const,
+          children: threads,
+        },
+        {
+          id: "college",
+          name: "College",
+          icon: Folder,
+          type: "folder" as const,
+          children: [],
+        },
+        {
+          id: "household",
+          name: "Household",
+          icon: Folder,
+          type: "folder" as const,
+          children: [],
+        },
+        {
+          id: "projects",
+          name: "Projects",
+          icon: Folder,
+          type: "folder" as const,
+          children: [],
+        },
+      ]);
     } catch (error) {
       console.error("Failed to fetch threads:", error);
     }
