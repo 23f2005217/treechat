@@ -1,14 +1,35 @@
+import { useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { Folder, MessageSquare } from "lucide-react";
 import { TreeView, type TreeDataItem } from "./tree-view";
 import { SidebarItemActions } from "./SidebarItemActions";
 import { useSidebarStore } from "../store/useSidebarStore";
+import { useThreads } from "../hooks/useThreads";
 
 type SidebarTreeItem = ReturnType<typeof useSidebarStore.getState>["treeData"][number];
 
 export function SidebarTree() {
   const { treeData, searchQuery } = useSidebarStore();
+  const navigate = useNavigate();
+  const { fetchThreads } = useThreads();
+
+  useEffect(() => {
+    fetchThreads();
+  }, []);
 
   const filteredTreeData = useMemoFiltered(treeData, searchQuery);
+
+  const handleSelect = (item: TreeDataItem | undefined) => {
+    if (!item) return;
+    const typedItem = item as SidebarTreeItem;
+    const { toggleFolder } = useSidebarStore.getState();
+
+    if (typedItem.type === "thread") {
+      navigate(`/thread/${typedItem.id}`);
+    } else if (typedItem.type === "folder") {
+      toggleFolder(typedItem.id);
+    }
+  };
 
   return (
     <div className="flex-1 overflow-y-auto">
@@ -17,7 +38,7 @@ export function SidebarTree() {
         expandAll={!!searchQuery}
         defaultLeafIcon={MessageSquare}
         defaultNodeIcon={Folder}
-        onSelectChange={handleSelectChange}
+        onSelectChange={handleSelect}
         onDocumentDrag={handleDrag}
         renderItem={renderItem}
         className="p-2"
@@ -42,17 +63,6 @@ function useMemoFiltered(items: SidebarTreeItem[], query: string) {
   return items.map(filterItem).filter((item): item is SidebarTreeItem => item !== null);
 }
 
-function handleSelectChange(item: TreeDataItem | undefined) {
-  if (!item) return;
-  const typedItem = item as SidebarTreeItem;
-  const { toggleFolder } = useSidebarStore.getState();
-
-  if (typedItem.type === "thread") {
-    window.location.href = `/thread/${typedItem.id}`;
-  } else if (typedItem.type === "folder") {
-    toggleFolder(typedItem.id);
-  }
-}
 
 function handleDrag(sourceItem: TreeDataItem, targetItem: TreeDataItem) {
   const { treeData, addItemToFolder } = useSidebarStore.getState();
