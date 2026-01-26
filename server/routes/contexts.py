@@ -5,8 +5,10 @@ from bson import ObjectId
 
 from server.models import Context, ContextCreate, Message, ForkContextRequest, ForkType
 from server.models import MessageRole
+from server.logger import Logger
 
 router = APIRouter()
+logger = Logger.get("contexts")
 
 
 @router.post("/", response_model=Context, status_code=201)
@@ -14,6 +16,7 @@ async def create_context(context_data: ContextCreate):
     """Create a new conversation context"""
     context = Context(**context_data.model_dump())
     await context.insert()
+    logger.info(f"Created context: {context.id}")
     return context
 
 
@@ -62,7 +65,9 @@ async def get_context_messages(context_id: str):
 
 
 @router.patch("/{context_id}", response_model=Context)
-async def update_context(context_id: str, title: Optional[str] = None, summary: Optional[str] = None):
+async def update_context(
+    context_id: str, title: Optional[str] = None, summary: Optional[str] = None
+):
     """Update context metadata"""
     context = await Context.get(context_id)
     if not context:
@@ -95,57 +100,66 @@ async def fork_context(request: ForkContextRequest):
     """Fork a thread from an existing context with different context copy options"""
     source_context = await Context.get(request.source_context_id)
     if not source_context:
+        logger.warning(f"Source context not found: {request.source_context_id}")
         raise HTTPException(status_code=404, detail="Source context not found")
-    
-    # Create new context title
+
     title = request.title or f"Fork of {source_context.title}"
-    
-    # Create the new forked context
+
     new_context = Context(
         title=title,
         parent_context_id=request.source_context_id,
         forked_from_message_id=request.fork_from_message_id,
         fork_type=request.fork_type,
     )
-    
-    # Handle different fork types
+
     if request.fork_type == ForkType.SUMMARY:
-        # Copy summary from parent
         new_context.summary = source_context.summary
         new_context.description = f"Forked from: {source_context.title}"
     elif request.fork_type == ForkType.FULL:
-        # Copy messages up to the fork point
         new_context.summary = source_context.summary
         new_context.key_decisions = source_context.key_decisions.copy()
         new_context.open_loops = source_context.open_loops.copy()
         new_context.description = source_context.description
-    # ForkType.EMPTY - just create empty context with parent link
-    
+
     await new_context.insert()
-    
-    # If FULL fork, copy messages up to the fork point
+    logger.info(f"Forked context: {new_context.id} from {request.source_context_id}")
+
     if request.fork_type == ForkType.FULL:
-        source_messages = await Message.find(
-            Message.context_id == request.source_context_id
-        ).sort("+created_at").to_list()
-        
-        # If forking from a specific message, only copy up to that point
+        source_messages = (
+            await Message.find(Message.context_id == request.source_context_id)
+            .sort("+created_at")
+            .to_list()
+        )
+
         if request.fork_from_message_id:
-            # Build message chain from root to fork point
             message_ids_to_copy = set()
-            fork_msg = next((m for m in source_messages if str(m.id) == request.fork_from_message_id), None)
+            fork_msg = next(
+                (
+                    m
+                    for m in source_messages
+                    if str(m.id) == request.fork_from_message_id
+                ),
+                None,
+            )
             if fork_msg:
-                # Traverse up to find all ancestors
                 current = fork_msg
                 while current:
                     message_ids_to_copy.add(str(current.id))
                     if current.parent_id:
-                        current = next((m for m in source_messages if str(m.id) == current.parent_id), None)
+                        current = next(
+                            (
+                                m
+                                for m in source_messages
+                                if str(m.id) == current.parent_id
+                            ),
+                            None,
+                        )
                     else:
                         current = None
-                source_messages = [m for m in source_messages if str(m.id) in message_ids_to_copy]
-        
-        # Copy messages with new context_id
+                source_messages = [
+                    m for m in source_messages if str(m.id) in message_ids_to_copy
+                ]
+
         id_map = {}
         for msg in source_messages:
             new_parent_id = id_map.get(msg.parent_id) if msg.parent_id else None
@@ -158,16 +172,18 @@ async def fork_context(request: ForkContextRequest):
             )
             await new_msg.insert()
             id_map[str(msg.id)] = str(new_msg.id)
-    
+
     return new_context
 
 
 @router.get("/{context_id}/children", response_model=List[Context])
 async def get_child_contexts(context_id: str):
     """Get all child threads of a context"""
-    children = await Context.find(
-        Context.parent_context_id == context_id
-    ).sort("-created_at").to_list()
+    children = (
+        await Context.find(Context.parent_context_id == context_id)
+        .sort("-created_at")
+        .to_list()
+    )
     return children
 
 

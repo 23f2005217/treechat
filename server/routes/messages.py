@@ -2,8 +2,10 @@ from fastapi import APIRouter, HTTPException
 from typing import List, Optional
 
 from server.models import Message, MessageCreate, MessageRole
+from server.logger import Logger
 
 router = APIRouter()
+logger = Logger.get("messages")
 
 
 @router.post("/", response_model=Message, status_code=201)
@@ -11,8 +13,8 @@ async def create_message(message_data: MessageCreate):
     """Create a new message in the tree"""
     message = Message(**message_data.model_dump())
     await message.insert()
+    logger.info(f"Created message: {message.id}")
 
-    # If this message has a parent, add it to parent's children
     if message.parent_id:
         parent = await Message.get(message.parent_id)
         if parent:
@@ -20,6 +22,25 @@ async def create_message(message_data: MessageCreate):
             await parent.save()
 
     return message
+
+
+@router.delete("/{message_id}", status_code=204)
+async def delete_message(message_id: str):
+    """Delete a message (and optionally its subtree)"""
+    message = await Message.get(message_id)
+    if not message:
+        logger.warning(f"Message not found: {message_id}")
+        raise HTTPException(status_code=404, detail="Message not found")
+
+    if message.parent_id:
+        parent = await Message.get(message.parent_id)
+        if parent and str(message.id) in parent.children_ids:
+            parent.children_ids.remove(str(message.id))
+            await parent.save()
+
+    await message.delete()
+    logger.info(f"Deleted message: {message_id}")
+    return None
 
 
 @router.get("/", response_model=List[Message])

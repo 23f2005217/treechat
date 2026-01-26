@@ -7,8 +7,10 @@ from server.llm import generate_response
 from server.models import Task, Message, Context, MessageRole, MessageCreate
 from server.utils.nlp import task_extractor
 from server.utils.urgency import urgency_engine
+from server.logger import Logger
 
 router = APIRouter()
+logger = Logger.get("chat")
 
 
 class ChatRequest(BaseModel):
@@ -27,8 +29,8 @@ class ChatResponse(BaseModel):
 @router.post("/", response_model=ChatResponse)
 async def chat(request: ChatRequest):
     """Process natural language input and extract tasks"""
+    logger.info(f"Received message: {request.message[:50]}...")
 
-    # 1. Create user message
     user_message = Message(
         content=request.message,
         role=MessageRole.USER,
@@ -36,15 +38,15 @@ async def chat(request: ChatRequest):
         context_id=request.context_id,
     )
     await user_message.insert()
+    logger.debug(f"Created user message: {user_message.id}")
 
-    # 2. Extract task data from message
     task_data = task_extractor.extract(request.message)
 
-    # 3. Create task if task-like content detected
     created_tasks = []
     entities = []
 
     if task_data["domain"] or task_data["due_date"] or task_data["due_fuzzy"]:
+        logger.info(f"Extracted task: {task_data['title']}")
         # Create task
         task = Task(
             title=task_data["title"],

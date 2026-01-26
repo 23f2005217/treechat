@@ -1,0 +1,12 @@
+[package]
+name = "fastlogger"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+name = "fastlogger"
+crate-type = ["cdylib"]
+
+[dependencies]
+pyo3 = { version = "0.23", features = ["extension-module"] }
+chrono = "0.4"

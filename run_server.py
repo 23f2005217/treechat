@@ -15,16 +15,21 @@ sys.path.insert(0, os.path.dirname(__file__))
 async def run_server():
     try:
         from server.main import app
+        from server.config import settings
 
         # Configure uvicorn
         config = Config(
-            app=app, host="0.0.0.0", port=5000, reload=True, log_level="info"
+            app=app,
+            host=settings.HOST,
+            port=settings.PORT,
+            reload=True,
+            log_level="info",
         )
 
         server = Server(config)
         print("Starting TreeChat server...")
-        print("API will be available at: http://localhost:5000")
-        print("API docs at: http://localhost:5000/docs")
+        print(f"API will be available at: http://localhost:{settings.PORT}")
+        print(f"API docs at: http://localhost:{settings.PORT}/docs")
 
         await server.serve()
 

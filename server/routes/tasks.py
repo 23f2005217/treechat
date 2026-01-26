@@ -3,8 +3,10 @@ from typing import List, Optional
 from datetime import datetime, timedelta
 
 from server.models import Task, TaskCreate, TaskUpdate, TaskDomain, UrgencyLevel
+from server.logger import Logger
 
 router = APIRouter()
+logger = Logger.get("tasks")
 
 
 @router.post("/", response_model=Task, status_code=201)
@@ -12,6 +14,7 @@ async def create_task(task_data: TaskCreate):
     """Create a new task"""
     task = Task(**task_data.model_dump())
     await task.insert()
+    logger.info(f"Created task: {task.id}")
     return task
 
 
@@ -99,13 +102,14 @@ async def update_task(task_id: str, task_update: TaskUpdate):
     """Update a task"""
     task = await Task.get(task_id)
     if not task:
+        logger.warning(f"Task not found: {task_id}")
         raise HTTPException(status_code=404, detail="Task not found")
 
     update_data = task_update.model_dump(exclude_unset=True)
 
-    # Handle completion
     if "completed" in update_data and update_data["completed"]:
         update_data["completed_at"] = datetime.utcnow()
+        logger.info(f"Marked task as completed: {task_id}")
 
     update_data["updated_at"] = datetime.utcnow()
 
@@ -113,6 +117,7 @@ async def update_task(task_id: str, task_update: TaskUpdate):
         setattr(task, field, value)
 
     await task.save()
+    logger.debug(f"Updated task: {task_id}")
     return task
 
 
@@ -121,7 +126,9 @@ async def delete_task(task_id: str):
     """Delete a task"""
     task = await Task.get(task_id)
     if not task:
+        logger.warning(f"Task not found: {task_id}")
         raise HTTPException(status_code=404, detail="Task not found")
 
     await task.delete()
+    logger.info(f"Deleted task: {task_id}")
     return None
