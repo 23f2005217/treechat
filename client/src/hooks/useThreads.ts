@@ -22,15 +22,32 @@ export function useThreads() {
       const response = await axios.get<BackendContext[]>("/api/contexts/");
       const contexts = response.data;
       
+      // Create a map for quick lookup
+      const contextMap = new Map(contexts.map(ctx => [ctx._id, ctx]));
+      
       // Separate root threads from forked threads
       const rootThreads = contexts.filter(ctx => !ctx.parent_context_id);
       const forkedThreads = contexts.filter(ctx => ctx.parent_context_id);
       
-      // Build nested structure
+      // Build nested structure with fork context
       const buildThreadItem = (ctx: BackendContext): SidebarTreeItem => {
         const children = forkedThreads
           .filter(child => child.parent_context_id === ctx._id)
           .map(child => buildThreadItem(child));
+        
+        // Get parent context info for forks
+        let parentContextId = null;
+        let parentTitle = null;
+        let forkType = null;
+        
+        if (ctx.parent_context_id) {
+          const parent = contextMap.get(ctx.parent_context_id);
+          if (parent) {
+            parentContextId = ctx.parent_context_id;
+            parentTitle = parent.title;
+            forkType = ctx.fork_type;
+          }
+        }
         
         return {
           id: ctx._id,
@@ -40,6 +57,9 @@ export function useThreads() {
           createdAt: new Date(ctx.created_at).getTime(),
           updatedAt: new Date(ctx.updated_at).getTime(),
           children: children.length > 0 ? children : undefined,
+          parentContextId,
+          parentTitle,
+          forkType,
         };
       };
       
@@ -115,11 +135,12 @@ export function useThreads() {
     fetchThreads();
   }, [fetchThreads]);
 
-  return {
-    fetchThreads,
-    createThread,
-    renameThread,
-    deleteThread,
-    forkThread,
-  };
+    return {
+      fetchThreads,
+      createThread,
+      renameThread,
+      deleteThread,
+      forkThread,
+    };
 }
+

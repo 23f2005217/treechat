@@ -1,19 +1,23 @@
 import { create } from "zustand";
 import type { TreeDataItem } from "../components/tree-view";
-import { Folder, MessageSquare } from "lucide-react";
+import { Folder as FolderIcon, MessageSquare } from "lucide-react";
 
 export interface SidebarTreeItem extends TreeDataItem {
   type: "folder" | "thread";
   children?: SidebarTreeItem[];
   createdAt?: number;
   updatedAt?: number;
+  parentContextId?: string | null;
+  parentTitle?: string | null;
+  forkType?: string | null;
+  forkedFromMessageId?: string | null;
 }
 
 interface SidebarState {
   treeData: SidebarTreeItem[];
   searchQuery: string;
   expandedFolders: Set<string>;
-  
+
   createDialog: {
     isOpen: boolean;
     parentId: string | null;
@@ -30,54 +34,34 @@ interface SidebarState {
     itemName: string;
     type: "folder" | "thread";
   };
-  
+
   newItemName: string;
-  
+
   setSearchQuery: (query: string) => void;
   toggleFolder: (itemId: string) => void;
-  
+
   setCreateDialog: (dialog: SidebarState["createDialog"]) => void;
   setRenameDialog: (dialog: SidebarState["renameDialog"]) => void;
   setDeleteDialog: (dialog: SidebarState["deleteDialog"]) => void;
-  
+
   setNewItemName: (name: string) => void;
-  
+
   setTreeData: (data: SidebarTreeItem[]) => void;
-  
+
+  setExpandedFolders: (folders: Set<string>) => void;
+  expandAllFolders: () => void;
+  collapseAllFolders: () => void;
+
   createItem: () => void;
   renameItem: () => void;
   deleteItem: () => void;
-  
-  addItemToFolder: (parentId: string, item: SidebarTreeItem) => void;
-  addItemToRoot: (item: SidebarTreeItem) => void;
 }
 
 const initialTreeData: SidebarTreeItem[] = [
   {
     id: "all",
     name: "All Threads",
-    icon: Folder,
-    type: "folder",
-    children: [],
-  },
-  {
-    id: "college",
-    name: "College",
-    icon: Folder,
-    type: "folder",
-    children: [],
-  },
-  {
-    id: "household",
-    name: "Household",
-    icon: Folder,
-    type: "folder",
-    children: [],
-  },
-  {
-    id: "projects",
-    name: "Projects",
-    icon: Folder,
+    icon: FolderIcon,
     type: "folder",
     children: [],
   },
@@ -86,7 +70,7 @@ const initialTreeData: SidebarTreeItem[] = [
 export const useSidebarStore = create<SidebarState>((set, get) => ({
   treeData: initialTreeData,
   searchQuery: "",
-  expandedFolders: new Set(["all"]),
+  expandedFolders: new Set<string>([]), // Start with no folders expanded, will be populated
   createDialog: {
     isOpen: false,
     parentId: null,
@@ -123,17 +107,38 @@ export const useSidebarStore = create<SidebarState>((set, get) => ({
   setDeleteDialog: (dialog) => set({ deleteDialog: dialog }),
 
   setNewItemName: (name) => set({ newItemName: name }),
-  
+
   setTreeData: (data) => set({ treeData: data }),
+
+  expandAllFolders: () => {
+    const { treeData } = get();
+    const folderIds = new Set<string>();
+    const collectFolderIds = (items: SidebarTreeItem[]) => {
+      items.forEach(item => {
+        if (item.type === "folder") {
+          folderIds.add(item.id);
+          if (item.children) {
+            collectFolderIds(item.children);
+          }
+        }
+      });
+    };
+    collectFolderIds(treeData);
+    set({ expandedFolders: folderIds });
+  },
+
+  collapseAllFolders: () => set({ expandedFolders: new Set<string>() }),
+
+  setExpandedFolders: (folders) => set({ expandedFolders: folders }),
 
   createItem: () => {
     const { createDialog, newItemName, treeData } = get();
     if (!newItemName.trim()) return;
 
     const newItem: SidebarTreeItem = {
-      id: `${createDialog.type}-${Date.now()}`,
+      id: `folder-${Date.now()}`,
       name: newItemName.trim(),
-      icon: createDialog.type === "folder" ? Folder : MessageSquare,
+      icon: createDialog.type === "folder" ? FolderIcon : MessageSquare,
       type: createDialog.type,
       children: createDialog.type === "folder" ? [] : undefined,
       createdAt: Date.now(),
@@ -144,7 +149,7 @@ export const useSidebarStore = create<SidebarState>((set, get) => ({
       if (createDialog.parentId === null) {
         return [...items, newItem];
       }
-      
+
       return items.map((item) => {
         if (item.id === createDialog.parentId && item.type === "folder") {
           return {
@@ -208,29 +213,4 @@ export const useSidebarStore = create<SidebarState>((set, get) => ({
     });
   },
 
-  addItemToFolder: (parentId, item) => {
-    const { treeData, toggleFolder } = get();
-    
-    const updateTree = (items: SidebarTreeItem[]): SidebarTreeItem[] => {
-      return items.map((folder) => {
-        if (folder.id === parentId && folder.type === "folder") {
-          return {
-            ...folder,
-            children: [...(folder.children || []), item],
-          };
-        }
-        if (folder.children) {
-          return { ...folder, children: updateTree(folder.children) };
-        }
-        return folder;
-      });
-    };
-
-    toggleFolder(parentId);
-    set({ treeData: updateTree(treeData) });
-  },
-
-  addItemToRoot: (item) => {
-    set((state) => ({ treeData: [...state.treeData, item] }));
-  },
 }));

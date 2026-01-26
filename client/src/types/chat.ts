@@ -22,3 +22,15 @@ export interface ContextItem {
   content: string;
   timestamp: Date;
 }
+
+export interface ThreadInfo {
+  id: string;
+  title: string;
+  parentContextId?: string | null;
+  parentTitle?: string | null;
+  forkType?: string | null;
+  forkedFromMessageId?: string | null;
+  createdAt: number;
+  updatedAt: number;
+  children?: ThreadInfo[];
+}

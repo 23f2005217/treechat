@@ -1,6 +1,7 @@
-import { Send, Paperclip } from "lucide-react";
+import { Send, Paperclip, GitFork } from "lucide-react";
 import { Button } from "./ui/button";
 import { Textarea } from "./ui/textarea";
+import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
 
 interface ChatComposerProps {
   value: string;
@@ -9,9 +10,10 @@ interface ChatComposerProps {
   disabled?: boolean;
   replyTo?: string | null;
   onCancelReply?: () => void;
+  onForkThread?: () => void;
 }
 
-export function ChatComposer({ value, onChange, onSend, disabled = false, replyTo = null, onCancelReply }: ChatComposerProps) {
+export function ChatComposer({ value, onChange, onSend, disabled = false, replyTo = null, onCancelReply, onForkThread }: ChatComposerProps) {
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
@@ -49,6 +51,25 @@ export function ChatComposer({ value, onChange, onSend, disabled = false, replyT
           disabled={disabled}
           rows={1}
         />
+
+        {/* Fork thread button */}
+        {onForkThread && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={onForkThread}
+                disabled={disabled}
+                className="h-10 w-10 shrink-0"
+                aria-label="Fork entire thread"
+              >
+                <GitFork className="h-4 w-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Fork entire thread</TooltipContent>
+          </Tooltip>
+        )}
 
         {/* Send button */}
         <Button

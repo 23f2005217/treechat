@@ -6,12 +6,21 @@ import { CheckpointCard } from "../components/CheckpointCard";
 import { EmptyState } from "../components/EmptyState";
 import { ContextPanel } from "../components/ContextPanel";
 import { ForkThreadDialog, type ForkType } from "../components/ForkThreadDialog";
+import { ForkInfo } from "../components/ForkInfo";
 import { ScrollArea } from "../components/ui/scroll-area";
 import { Spinner } from "../components/ui/spinner";
 import type { Message, ContextItem } from "../types/chat";
 import { useChat } from "../hooks/useChat";
 import { useChatStore } from "../store/useChatStore";
 import { useThreads } from "../hooks/useThreads";
+
+interface ThreadContext {
+  title?: string;
+  parentContextId?: string | null;
+  parentTitle?: string | null;
+  forkType?: string | null;
+  forkedFromMessageId?: string | null;
+}
 
 export default function ThreadPage() {
   const { threadId } = useParams();
@@ -33,6 +42,13 @@ export default function ThreadPage() {
   const [hasProcessedInitial, setHasProcessedInitial] = useState(false);
   const [forkDialogOpen, setForkDialogOpen] = useState(false);
   const [forkFromMessageId, setForkFromMessageId] = useState<string | null>(null);
+  const [threadContext, setThreadContext] = useState<ThreadContext>({
+    title: undefined,
+    parentContextId: null,
+    parentTitle: null,
+    forkType: null,
+    forkedFromMessageId: null,
+  });
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { forkThread } = useThreads();
 
@@ -126,8 +142,8 @@ export default function ThreadPage() {
     })();
   };
 
-  const handleForkThread = (messageId: string) => {
-    setForkFromMessageId(messageId);
+  const handleForkThread = (messageId?: string) => {
+    setForkFromMessageId(messageId || null);
     setForkDialogOpen(true);
   };
 
@@ -178,11 +194,30 @@ export default function ThreadPage() {
     }
   };
 
+  const handleRemoveContextItem = async (itemId: string) => {
+    try {
+      const res = await fetch(`/api/contexts/${itemId}`, {
+        method: "DELETE",
+      });
+      if (!res.ok) throw new Error(`remove context item failed: ${res.status}`);
+      setContextItems((prev) => prev.filter(item => item.id !== itemId));
+    } catch (e) {
+      console.error("Failed to remove context item:", e);
+    }
+  };
+
   useEffect(() => {
     const load = async () => {
       if (!threadId || !isValidObjectId(threadId)) {
         setMessages([]);
         setCurrentThreadId(undefined);
+        setThreadContext({
+          title: undefined,
+          parentContextId: null,
+          parentTitle: null,
+          forkType: null,
+          forkedFromMessageId: null,
+        });
         return;
       }
 
@@ -191,7 +226,65 @@ export default function ThreadPage() {
         setMessages(fetchedMessages);
         setCurrentThreadId(threadId);
         
-        const initialMessage = (location.state as any)?.initialMessage;
+        // Load context information
+        try {
+          const contextRes = await fetch(`/api/contexts/${threadId}`);
+          if (contextRes.ok) {
+            const context = await contextRes.json();
+            setThreadContext({
+              title: context.title as string | undefined,
+              parentContextId: context.parent_context_id as string | null | undefined,
+              parentTitle: null,
+              forkType: context.fork_type as string | null | undefined,
+              forkedFromMessageId: context.forked_from_message_id as string | null | undefined,
+            });
+
+            // If this is a fork, fetch parent context to get parent title
+            if (context.parent_context_id) {
+              try {
+                const parentRes = await fetch(`/api/contexts/${context.parent_context_id}`);
+                if (parentRes.ok) {
+                  const parentContext = await parentRes.json();
+                  setThreadContext(prev => ({
+                    ...prev,
+                    parentTitle: parentContext.title as string | null,
+                  }));
+                }
+              } catch (e) {
+                console.error("Failed to load parent context:", e);
+              }
+            }
+          }
+        } catch (e) {
+          console.error("Failed to load context info:", e);
+        }
+        
+        // Load pinned context items for this thread
+        try {
+          const contextsRes = await fetch(`/api/contexts/`);
+          if (contextsRes.ok) {
+            const contexts = await contextsRes.json();
+            // Filter for contexts with type "pinned" related to this thread
+            const pinnedItems = contexts
+              .filter((ctx: { type?: string; _id: string; title?: string; description?: string; summary?: string; created_at?: string | number }) => ctx.type === "pinned")
+              .map((ctx: { _id: string; title?: string; description?: string; summary?: string; created_at?: string | number }) => ({
+                id: String(ctx._id),
+                type: "pinned" as const,
+                title: ctx.title || "Pinned",
+                content: ctx.description || ctx.summary || "",
+                timestamp: new Date(ctx.created_at || Date.now()),
+              }));
+            setContextItems((prev) => {
+              const existing = new Set(prev.map((item: ContextItem) => item.id));
+              const newItems = pinnedItems.filter((item: ContextItem) => !existing.has(item.id));
+              return [...newItems, ...prev];
+            });
+          }
+        } catch (e) {
+          console.error("Failed to load pinned context:", e);
+        }
+        
+        const initialMessage = (location.state as { initialMessage?: string })?.initialMessage;
         if (initialMessage && !hasProcessedInitial && fetchedMessages.length === 0) {
           setHasProcessedInitial(true);
           setInputValue(initialMessage);
@@ -204,7 +297,7 @@ export default function ThreadPage() {
       }
     };
     load();
-  }, [threadId]);
+  }, [threadId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <div className="flex h-full min-h-0">
@@ -213,6 +306,17 @@ export default function ThreadPage() {
         {/* Messages */}
         <ScrollArea className="flex-1 min-h-0 p-6">
           <div className="max-w-3xl mx-auto space-y-6 pb-4">
+            {/* Fork Info Banner */}
+            {threadContext.forkType && threadContext.parentTitle && (
+              <div className="mb-6">
+                <ForkInfo
+                  forkType={threadContext.forkType}
+                  parentTitle={threadContext.parentTitle}
+                  forkedFromMessageId={threadContext.forkedFromMessageId}
+                />
+              </div>
+            )}
+            
             {messages.length === 0 ? (
               <EmptyState />
             ) : (
@@ -293,6 +397,7 @@ export default function ThreadPage() {
           disabled={isSending}
           replyTo={replyTo}
           onCancelReply={() => setReplyTo(null)}
+          onForkThread={() => handleForkThread()}
         />
       </div>
 
@@ -301,6 +406,7 @@ export default function ThreadPage() {
          contextItems={contextItems}
          isCollapsed={isContextPanelCollapsed}
          onToggle={() => setIsContextPanelCollapsed(!isContextPanelCollapsed)}
+         onRemoveItem={handleRemoveContextItem}
        />
 
       {/* Fork Thread Dialog */}
@@ -312,6 +418,7 @@ export default function ThreadPage() {
         }}
         onFork={handleForkConfirm}
         sourceThreadName={threadId ? `Thread ${threadId.slice(0, 8)}...` : "current thread"}
+        fromMessage={!!forkFromMessageId}
       />
     </div>
   );

@@ -20,6 +20,7 @@ interface ForkThreadDialogProps {
   onClose: () => void;
   onFork: (title: string, forkType: ForkType) => void;
   sourceThreadName?: string;
+  fromMessage?: boolean;
 }
 
 export function ForkThreadDialog({
@@ -27,6 +28,7 @@ export function ForkThreadDialog({
   onClose,
   onFork,
   sourceThreadName = "this thread",
+  fromMessage = false,
 }: ForkThreadDialogProps) {
   const [title, setTitle] = useState("");
   const [forkType, setForkType] = useState<ForkType>("summary");
@@ -66,10 +68,13 @@ export function ForkThreadDialog({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <GitFork className="h-5 w-5" />
-            Fork Thread
+            {fromMessage ? "Fork from Message" : "Fork Thread"}
           </DialogTitle>
           <DialogDescription>
-            Create a new thread branching from this conversation. Choose how much context to carry over.
+            {fromMessage 
+              ? "Create a new thread starting from this message. Choose how much context to carry over."
+              : "Create a new thread branching from the entire conversation. Choose how much context to carry over."
+            }
           </DialogDescription>
         </DialogHeader>
 

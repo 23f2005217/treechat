@@ -11,6 +11,7 @@ import {
 } from "./ui/dialog";
 import { useSidebarStore } from "../store/useSidebarStore";
 import { useThreads } from "../hooks/useThreads";
+import { useFolders } from "../hooks/useFolders";
 
 export function SidebarDialogs() {
   const {
@@ -22,19 +23,17 @@ export function SidebarDialogs() {
     setRenameDialog,
     setDeleteDialog,
     setNewItemName,
-    createItem,
-    renameItem,
-    deleteItem,
   } = useSidebarStore();
-  
+
   const { createThread, renameThread, deleteThread } = useThreads();
+  const { createFolder, renameFolder, deleteFolder } = useFolders();
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
 
   const handleCreateItem = async () => {
     if (!newItemName.trim()) return;
     setIsLoading(true);
-    
+
     if (createDialog.type === "thread") {
       const threadId = await createThread(newItemName.trim());
       setCreateDialog({ isOpen: false, parentId: null, type: "thread" });
@@ -43,7 +42,9 @@ export function SidebarDialogs() {
         navigate(`/thread/${threadId}`);
       }
     } else {
-      createItem();
+      await createFolder(newItemName.trim());
+      setCreateDialog({ isOpen: false, parentId: null, type: "folder" });
+      setNewItemName("");
     }
     setIsLoading(false);
   };
@@ -51,27 +52,32 @@ export function SidebarDialogs() {
   const handleRenameItem = async () => {
     if (!renameDialog.currentName.trim()) return;
     setIsLoading(true);
-    
+
     const isMongoId = /^[0-9a-fA-F]{24}$/.test(renameDialog.itemId);
     if (isMongoId) {
-      await renameThread(renameDialog.itemId, renameDialog.currentName.trim());
+      const isFolder = deleteDialog.type === "folder";
+      if (isFolder) {
+        await renameFolder(renameDialog.itemId, renameDialog.currentName.trim());
+      } else {
+        await renameThread(renameDialog.itemId, renameDialog.currentName.trim());
+      }
       setRenameDialog({ isOpen: false, itemId: "", currentName: "" });
-    } else {
-      renameItem();
     }
     setIsLoading(false);
   };
 
   const handleDeleteItem = async () => {
     setIsLoading(true);
-    
+
     const isMongoId = /^[0-9a-fA-F]{24}$/.test(deleteDialog.itemId);
-    if (isMongoId && deleteDialog.type === "thread") {
-      await deleteThread(deleteDialog.itemId);
+    if (isMongoId) {
+      if (deleteDialog.type === "folder") {
+        await deleteFolder(deleteDialog.itemId);
+      } else {
+        await deleteThread(deleteDialog.itemId);
+        navigate("/");
+      }
       setDeleteDialog({ isOpen: false, itemId: "", itemName: "", type: "thread" });
-      navigate("/");
-    } else {
-      deleteItem();
     }
     setIsLoading(false);
   };
