@@ -45,12 +45,14 @@ TreeChat is a full-stack application featuring:
 
 ## API Endpoints
 
-- `GET /api/contexts/` - List all threads
+- `GET /api/contexts/` - List all threads (includes parent_context_id for nesting)
 - `POST /api/contexts/` - Create new thread
 - `GET /api/contexts/{id}` - Get thread details
 - `PATCH /api/contexts/{id}` - Update thread
 - `DELETE /api/contexts/{id}` - Delete thread
 - `GET /api/contexts/{id}/messages` - Get thread messages
+- `GET /api/contexts/{id}/children` - Get child threads
+- `POST /api/contexts/fork` - Fork a thread with context options (summary/full/empty)
 - `POST /api/chat/` - Send chat message
 
 ## Development
@@ -63,6 +65,10 @@ The frontend proxies `/api` requests to the backend.
 
 ## Recent Changes
 
+- Added nested thread support: fork conversations at any point
+- Fork dialog with 3 context options: Summary, Full Details, or Fresh Start
+- Forked threads appear nested under parent threads in sidebar
+- Backend fork endpoint with context copying options
 - Fixed thread page scrolling: messages area scrolls while input stays fixed at bottom
 - Fixed button nesting hydration error in sidebar tree-view actions
 - Connected sidebar to backend contexts API for thread management
