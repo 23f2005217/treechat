@@ -7,30 +7,36 @@ channel = "stable-25_05"
 packages = ["libxcrypt", "vim-full"]
 
 [workflows]
-runButton = "Dev"
+runButton = "Project"
 
 [[workflows.workflow]]
-name = "Dev"
-author = "agent"
+name = "Project"
 mode = "parallel"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "TreeChat"
+
+[[workflows.workflow]]
+name = "TreeChat"
+author = "agent"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "python -m uvicorn server.main:app --host 0.0.0.0 --port 5000 --reload"
+args = "bash -c \"python -m uvicorn server.main:app --host 0.0.0.0 --port 8000 --reload & cd client && npm run dev -- --host 0.0.0.0 --port 5000\""
 waitForPort = 5000
 
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "cd client && npm run dev -- --host 0.0.0.0 --port 5173"
-waitForPort = 5173
+[workflows.workflow.metadata]
+outputType = "webview"
 
 [[ports]]
 localPort = 5000
-externalPort = 5000
+externalPort = 80
 
 [[ports]]
-localPort = 5173
-externalPort = 80
+localPort = 8000
+externalPort = 8000
 
 [deployment]
 deploymentTarget = "vm"

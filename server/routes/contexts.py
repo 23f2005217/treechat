@@ -63,7 +63,7 @@ async def get_context_messages(context_id: str):
 
 
 @router.patch("/{context_id}", response_model=Context)
-async def update_context(context_id: str, title: str = None, summary: str = None):
+async def update_context(context_id: str, title: Optional[str] = None, summary: Optional[str] = None):
     """Update context metadata"""
     context = await Context.get(context_id)
     if not context:

@@ -20,7 +20,7 @@ class Settings(BaseSettings):
 
     # Server
     HOST: str = "0.0.0.0"
-    PORT: int = 5000
+    PORT: int = 8000
 
     class Config:
         env_file = str(Path(__file__).parent / ".env")

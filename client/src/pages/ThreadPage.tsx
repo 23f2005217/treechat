@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { ChatMessage } from "../components/ChatMessage";
 import { ChatComposer } from "../components/ChatComposer";
 import { CheckpointCard } from "../components/CheckpointCard";
@@ -14,10 +14,10 @@ import { useChatStore } from "../store/useChatStore";
 export default function ThreadPage() {
   const { threadId } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const { sendMessage, fetchMessages, error } = useChat();
   const { messages, setMessages, isSending } = useChatStore();
 
-  // Validate MongoDB ObjectId format
   const isValidObjectId = (id: string | undefined) => {
     if (!id) return false;
     return /^[0-9a-fA-F]{24}$/.test(id);
@@ -28,6 +28,7 @@ export default function ThreadPage() {
   const [inputValue, setInputValue] = useState("");
   const [replyTo, setReplyTo] = useState<string | null>(null);
   const [isContextPanelCollapsed, setIsContextPanelCollapsed] = useState(false);
+  const [hasProcessedInitial, setHasProcessedInitial] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -195,7 +196,6 @@ export default function ThreadPage() {
     }
   };
 
-  // load thread from server if threadId provided
   useEffect(() => {
     const load = async () => {
       if (!threadId || !isValidObjectId(threadId)) {
@@ -208,6 +208,13 @@ export default function ThreadPage() {
         const fetchedMessages = await fetchMessages(threadId);
         setMessages(fetchedMessages);
         setCurrentThreadId(threadId);
+        
+        const initialMessage = (location.state as any)?.initialMessage;
+        if (initialMessage && !hasProcessedInitial && fetchedMessages.length === 0) {
+          setHasProcessedInitial(true);
+          setInputValue(initialMessage);
+          window.history.replaceState({}, document.title);
+        }
       } catch (e) {
         console.error(e);
         setMessages([]);
