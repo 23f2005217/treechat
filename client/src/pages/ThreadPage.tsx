@@ -225,11 +225,11 @@ export default function ThreadPage() {
   }, [threadId]);
 
   return (
-    <div className="flex h-full">
+    <div className="flex h-full min-h-0">
       {/* Main Chat Area */}
-      <div className="flex-1 flex flex-col">
+      <div className="flex-1 flex flex-col min-h-0">
         {/* Messages */}
-        <ScrollArea className="flex-1 p-6">
+        <ScrollArea className="flex-1 min-h-0 p-6">
           <div className="max-w-3xl mx-auto space-y-6 pb-4">
             {messages.length === 0 ? (
               <EmptyState />

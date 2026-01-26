@@ -20,7 +20,7 @@ export function ChatComposer({ value, onChange, onSend, disabled = false, replyT
   };
 
   return (
-    <div className="border-t bg-background p-4">
+    <div className="border-t bg-background p-4 shrink-0">
       {replyTo && (
         <div className="mb-2 p-2 bg-muted rounded flex items-center justify-between">
           <div className="text-sm">Replying to <span className="font-medium">{replyTo}</span></div>

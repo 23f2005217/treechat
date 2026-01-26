@@ -1,4 +1,3 @@
-import { Button } from "./ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -58,13 +57,19 @@ export function SidebarItemActions({ item }: SidebarItemActionsProps) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-6 w-6 opacity-0 group-hover:opacity-100 hover:bg-accent ml-auto"
+        <div
+          role="button"
+          tabIndex={0}
+          className="h-6 w-6 opacity-0 group-hover:opacity-100 hover:bg-accent ml-auto rounded-md flex items-center justify-center cursor-pointer"
+          onClick={(e) => e.stopPropagation()}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.stopPropagation();
+            }
+          }}
         >
           <MoreHorizontal className="h-3 w-3" />
-        </Button>
+        </div>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
         <DropdownMenuItem onClick={handleRename}>
