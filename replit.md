@@ -63,10 +63,14 @@ The frontend proxies `/api` requests to the backend.
 
 ## Recent Changes
 
+- Fixed thread page scrolling: messages area scrolls while input stays fixed at bottom
+- Fixed button nesting hydration error in sidebar tree-view actions
 - Connected sidebar to backend contexts API for thread management
 - Updated HomePage to welcome screen with quick start functionality
 - Integrated thread creation, renaming, and deletion with backend
 - Fixed navigation to use React Router instead of page reloads
+- Added folder icons to sidebar folder items
+- Sidebar search filters threads by name in real-time
 
 ## Environment Variables
 
