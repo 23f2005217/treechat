@@ -5,11 +5,13 @@ import { ChatComposer } from "../components/ChatComposer";
 import { CheckpointCard } from "../components/CheckpointCard";
 import { EmptyState } from "../components/EmptyState";
 import { ContextPanel } from "../components/ContextPanel";
+import { ForkThreadDialog, type ForkType } from "../components/ForkThreadDialog";
 import { ScrollArea } from "../components/ui/scroll-area";
 import { Spinner } from "../components/ui/spinner";
 import type { Message, ContextItem } from "../types/chat";
 import { useChat } from "../hooks/useChat";
 import { useChatStore } from "../store/useChatStore";
+import { useThreads } from "../hooks/useThreads";
 
 export default function ThreadPage() {
   const { threadId } = useParams();
@@ -29,7 +31,10 @@ export default function ThreadPage() {
   const [replyTo, setReplyTo] = useState<string | null>(null);
   const [isContextPanelCollapsed, setIsContextPanelCollapsed] = useState(false);
   const [hasProcessedInitial, setHasProcessedInitial] = useState(false);
+  const [forkDialogOpen, setForkDialogOpen] = useState(false);
+  const [forkFromMessageId, setForkFromMessageId] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const { forkThread } = useThreads();
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -121,53 +126,30 @@ export default function ThreadPage() {
     })();
   };
 
-  const handleForkThread = async (messageId: string) => {
-    // create a new server-backed context and copy the subtree of messages into it
-    const getSubtree = (rootId: string) => {
-      const map: Record<string, Message[]> = {};
-      messages.forEach((m) => {
-        const pid = m.parentId || "root";
-        if (!map[pid]) map[pid] = [];
-        map[pid].push(m);
-      });
+  const handleForkThread = (messageId: string) => {
+    setForkFromMessageId(messageId);
+    setForkDialogOpen(true);
+  };
 
-      const collected: Message[] = [];
-      const walk = (id: string) => {
-        const node = messages.find((m) => m.id === id);
-        if (!node) return;
-        collected.push(node);
-        const children = map[id] || [];
-        children.forEach((c) => walk(c.id));
-      };
-      walk(rootId);
-      return collected;
-    };
-
-    const subtree = getSubtree(messageId);
-    if (subtree.length === 0) return;
+  const handleForkConfirm = async (title: string, forkType: ForkType) => {
+    if (!currentThreadId || !isValidObjectId(currentThreadId)) {
+      console.error("Cannot fork: no valid thread ID");
+      return;
+    }
 
     try {
-      // prepare messages for bulk import
-      const messagesPayload = subtree.map((m) => ({
-        old_id: m.id,
-        content: m.content,
-        role: m.role,
-        parent_old_id: m.parentId ?? null,
-      }));
-
-      const payload = { title: `Fork from ${messageId}`, messages: messagesPayload };
-      const res = await fetch(`/api/contexts/import`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-      if (!res.ok) throw new Error(`import failed: ${res.status}`);
-      const data = await res.json();
-      const newContextId = String(data.context_id || data.id || "");
-      if (!newContextId) throw new Error("missing context id from import response");
-      navigate(`/thread/${newContextId}`);
+      const newThreadId = await forkThread(
+        currentThreadId,
+        title,
+        forkType,
+        forkFromMessageId || undefined
+      );
+      
+      if (newThreadId) {
+        navigate(`/thread/${newThreadId}`);
+      }
     } catch (e) {
-      console.error("Failed to fork thread to server", e);
+      console.error("Failed to fork thread:", e);
     }
   };
 
@@ -320,6 +302,17 @@ export default function ThreadPage() {
          isCollapsed={isContextPanelCollapsed}
          onToggle={() => setIsContextPanelCollapsed(!isContextPanelCollapsed)}
        />
+
+      {/* Fork Thread Dialog */}
+      <ForkThreadDialog
+        isOpen={forkDialogOpen}
+        onClose={() => {
+          setForkDialogOpen(false);
+          setForkFromMessageId(null);
+        }}
+        onFork={handleForkConfirm}
+        sourceThreadName={threadId ? `Thread ${threadId.slice(0, 8)}...` : "current thread"}
+      />
     </div>
   );
 }

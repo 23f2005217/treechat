@@ -1,14 +1,18 @@
 import { useEffect, useCallback } from "react";
 import axios from "axios";
-import { useSidebarStore } from "../store/useSidebarStore";
-import { MessageSquare, Folder } from "lucide-react";
+import { useSidebarStore, type SidebarTreeItem } from "../store/useSidebarStore";
+import { MessageSquare, Folder, GitFork } from "lucide-react";
 
 interface BackendContext {
   _id: string;
   title: string;
   created_at: string;
   updated_at: string;
+  parent_context_id?: string | null;
+  fork_type?: string | null;
 }
+
+export type ForkType = "summary" | "full" | "empty";
 
 export function useThreads() {
   const setTreeData = useSidebarStore((state) => state.setTreeData);
@@ -16,14 +20,30 @@ export function useThreads() {
   const fetchThreads = useCallback(async () => {
     try {
       const response = await axios.get<BackendContext[]>("/api/contexts/");
-      const threads = response.data.map((ctx) => ({
-        id: ctx._id,
-        name: ctx.title || "Untitled Thread",
-        icon: MessageSquare,
-        type: "thread" as const,
-        createdAt: new Date(ctx.created_at).getTime(),
-        updatedAt: new Date(ctx.updated_at).getTime(),
-      }));
+      const contexts = response.data;
+      
+      // Separate root threads from forked threads
+      const rootThreads = contexts.filter(ctx => !ctx.parent_context_id);
+      const forkedThreads = contexts.filter(ctx => ctx.parent_context_id);
+      
+      // Build nested structure
+      const buildThreadItem = (ctx: BackendContext): SidebarTreeItem => {
+        const children = forkedThreads
+          .filter(child => child.parent_context_id === ctx._id)
+          .map(child => buildThreadItem(child));
+        
+        return {
+          id: ctx._id,
+          name: ctx.title || "Untitled Thread",
+          icon: ctx.parent_context_id ? GitFork : MessageSquare,
+          type: "thread" as const,
+          createdAt: new Date(ctx.created_at).getTime(),
+          updatedAt: new Date(ctx.updated_at).getTime(),
+          children: children.length > 0 ? children : undefined,
+        };
+      };
+      
+      const threads = rootThreads.map(ctx => buildThreadItem(ctx));
 
       setTreeData([
         {
@@ -32,27 +52,6 @@ export function useThreads() {
           icon: Folder,
           type: "folder" as const,
           children: threads,
-        },
-        {
-          id: "college",
-          name: "College",
-          icon: Folder,
-          type: "folder" as const,
-          children: [],
-        },
-        {
-          id: "household",
-          name: "Household",
-          icon: Folder,
-          type: "folder" as const,
-          children: [],
-        },
-        {
-          id: "projects",
-          name: "Projects",
-          icon: Folder,
-          type: "folder" as const,
-          children: [],
         },
       ]);
     } catch (error) {
@@ -91,6 +90,27 @@ export function useThreads() {
     }
   }, [fetchThreads]);
 
+  const forkThread = useCallback(async (
+    sourceContextId: string,
+    title: string,
+    forkType: ForkType,
+    forkFromMessageId?: string
+  ): Promise<string | null> => {
+    try {
+      const response = await axios.post("/api/contexts/fork", {
+        source_context_id: sourceContextId,
+        fork_from_message_id: forkFromMessageId,
+        fork_type: forkType,
+        title,
+      });
+      await fetchThreads();
+      return response.data._id || response.data.id;
+    } catch (error) {
+      console.error("Failed to fork thread:", error);
+      return null;
+    }
+  }, [fetchThreads]);
+
   useEffect(() => {
     fetchThreads();
   }, [fetchThreads]);
@@ -100,5 +120,6 @@ export function useThreads() {
     createThread,
     renameThread,
     deleteThread,
+    forkThread,
   };
 }

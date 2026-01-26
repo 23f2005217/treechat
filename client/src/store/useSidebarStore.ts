@@ -2,7 +2,7 @@ import { create } from "zustand";
 import type { TreeDataItem } from "../components/tree-view";
 import { Folder, MessageSquare } from "lucide-react";
 
-interface SidebarTreeItem extends TreeDataItem {
+export interface SidebarTreeItem extends TreeDataItem {
   type: "folder" | "thread";
   children?: SidebarTreeItem[];
   createdAt?: number;
