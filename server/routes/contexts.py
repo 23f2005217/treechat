@@ -1,6 +1,7 @@
 from fastapi import APIRouter, HTTPException
 from typing import List
 from datetime import datetime
+from bson import ObjectId
 
 from server.models import Context, ContextCreate, Message
 from server.models import MessageRole
@@ -29,6 +30,9 @@ async def list_contexts(limit: int = 20, skip: int = 0):
 @router.get("/{context_id}", response_model=Context)
 async def get_context(context_id: str):
     """Get a specific context"""
+    if not ObjectId.is_valid(context_id):
+        raise HTTPException(status_code=404, detail="Context not found")
+
     context = await Context.get(context_id)
     if not context:
         raise HTTPException(status_code=404, detail="Context not found")
@@ -43,6 +47,9 @@ async def get_context(context_id: str):
 @router.get("/{context_id}/messages", response_model=List[Message])
 async def get_context_messages(context_id: str):
     """Get all messages in a context"""
+    if not ObjectId.is_valid(context_id):
+        raise HTTPException(status_code=404, detail="Context not found")
+
     context = await Context.get(context_id)
     if not context:
         raise HTTPException(status_code=404, detail="Context not found")

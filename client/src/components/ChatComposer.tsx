@@ -43,7 +43,7 @@ export function ChatComposer({ value, onChange, onSend, disabled = false, replyT
         <Textarea
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          onKeyPress={handleKeyPress}
+          onKeyUpCapture={handleKeyPress}
           placeholder="Type your message..."
           className="min-h-12 resize-none py-3"
           disabled={disabled}

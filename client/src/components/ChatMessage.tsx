@@ -25,6 +25,7 @@ export function ChatMessage({
   onCopy,
   onPin,
   onFork,
+  onReply,
   onCreateTask,
 }: ChatMessageProps) {
   const isUser = role === "user";
@@ -35,10 +36,10 @@ export function ChatMessage({
 
   return (
     <div className={`flex ${isUser ? "justify-end" : "justify-start"} group`}>
-      <div className={`flex max-w-[80%] flex-col gap-2 ${isUser ? "items-end" : "items-start"}`}>
+      <div className={`flex max-w-[85%] flex-col gap-1.5 ${isUser ? "items-end" : "items-start"}`}>
         {/* Role badge */}
         {!isUser && !isCheckpoint && (
-          <Badge variant="secondary" className="text-xs font-normal">
+          <Badge variant="secondary" className="text-xs font-normal mb-0.5">
             {role}
           </Badge>
         )}
@@ -46,12 +47,12 @@ export function ChatMessage({
         {/* Message bubble */}
         <div
           className={`
-            rounded-2xl px-4 py-3 shadow-sm border
+            relative px-4 py-3 shadow-sm transition-all hover:shadow-md
             ${isUser
-              ? "bg-primary text-primary-foreground border-primary/20"
-              : "bg-background text-foreground border-border"
+              ? "bg-gradient-to-br from-blue-500 to-blue-600 text-white rounded-2xl rounded-tr-md"
+              : "bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-900 text-foreground border border-gray-200 dark:border-gray-700 rounded-2xl rounded-tl-md"
             }
-            ${isCheckpoint ? "bg-accent/50 border-accent" : ""}
+            ${isCheckpoint ? "bg-accent/50 border-accent rounded-xl" : ""}
           `}
         >
           {/* Checkpoint badge */}
@@ -65,13 +66,13 @@ export function ChatMessage({
           <p className="text-sm leading-relaxed whitespace-pre-wrap">{content}</p>
 
           {/* Timestamp */}
-          <div className={`text-xs mt-2 ${isUser ? "text-primary-foreground/70" : "text-muted-foreground"}`}>
+          <div className={`text-xs mt-2 ${isUser ? "text-white/80" : "text-muted-foreground"}`}>
             {timeString}
           </div>
         </div>
 
         {/* Message actions */}
-        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+        <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
@@ -81,7 +82,7 @@ export function ChatMessage({
                 onClick={() => onCopy(content)}
                 aria-label="Copy message"
               >
-                <Copy className="h-3 w-3" />
+                <Copy className="h-3.5 w-3.5" />
               </Button>
             </TooltipTrigger>
             <TooltipContent>Copy</TooltipContent>
@@ -98,8 +99,7 @@ export function ChatMessage({
                   onClick={() => onReply(id)}
                   aria-label="Reply to message"
                 >
-                  {/* small reply arrow */}
-                  <svg className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10 14L2 6l8-8" transform="translate(6 6)"/></svg>
+                  <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10 14L2 6l8-8" transform="translate(6 6)"/></svg>
                 </Button>
               </TooltipTrigger>
               <TooltipContent>Reply</TooltipContent>
@@ -115,7 +115,7 @@ export function ChatMessage({
                 onClick={() => onFork(id)}
                 aria-label="Fork thread from here"
               >
-                <Forklift className="h-3 w-3" />
+                <Forklift className="h-3.5 w-3.5" />
               </Button>
             </TooltipTrigger>
             <TooltipContent>Fork thread</TooltipContent>
@@ -130,7 +130,7 @@ export function ChatMessage({
                 onClick={() => onPin(id)}
                 aria-label="Pin to context"
               >
-                <Pin className="h-3 w-3" />
+                <Pin className="h-3.5 w-3.5" />
               </Button>
             </TooltipTrigger>
             <TooltipContent>Pin to context</TooltipContent>
@@ -145,7 +145,7 @@ export function ChatMessage({
                 onClick={() => onCreateTask(id)}
                 aria-label="Create task from message"
               >
-                <ClipboardList className="h-3 w-3" />
+                <ClipboardList className="h-3.5 w-3.5" />
               </Button>
             </TooltipTrigger>
             <TooltipContent>Create task</TooltipContent>

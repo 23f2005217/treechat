@@ -6,21 +6,27 @@ import { CheckpointCard } from "../components/CheckpointCard";
 import { EmptyState } from "../components/EmptyState";
 import { ContextPanel } from "../components/ContextPanel";
 import { ScrollArea } from "../components/ui/scroll-area";
-import { mockThread, mockContext } from "../data/mockData";
-import type { Message, Thread, ContextItem } from "../types/chat";
+import { Spinner } from "../components/ui/spinner";
+import type { Message, ContextItem } from "../types/chat";
+import { useChat } from "../hooks/useChat";
+import { useChatStore } from "../store/useChatStore";
 
 export default function ThreadPage() {
   const { threadId } = useParams();
   const navigate = useNavigate();
+  const { sendMessage, fetchMessages, error } = useChat();
+  const { messages, setMessages, isSending } = useChatStore();
 
-  // messages are stored as a flat list but may reference parentId to form a tree
-  const [messages, setMessages] = useState<Message[]>(mockThread.messages);
-  const [currentThreadId, setCurrentThreadId] = useState<string | undefined>(mockThread.id);
-  const [contextItems, setContextItems] = useState<ContextItem[]>(mockContext);
+  // Validate MongoDB ObjectId format
+  const isValidObjectId = (id: string | undefined) => {
+    if (!id) return false;
+    return /^[0-9a-fA-F]{24}$/.test(id);
+  };
+
+  const [currentThreadId, setCurrentThreadId] = useState<string | undefined>(threadId);
+  const [contextItems, setContextItems] = useState<ContextItem[]>([]);
   const [inputValue, setInputValue] = useState("");
-  // replyTo stores the message id we're replying to (for threaded replies)
   const [replyTo, setReplyTo] = useState<string | null>(null);
-  const [isSending, setIsSending] = useState(false);
   const [isContextPanelCollapsed, setIsContextPanelCollapsed] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -35,77 +41,40 @@ export default function ThreadPage() {
   const handleSendMessage = async () => {
     if (!inputValue.trim() || isSending) return;
 
-    setIsSending(true);
+    const message = inputValue.trim();
     setInputValue("");
+    setReplyTo(null);
 
-    // If viewing the mock thread (local), keep previous simulated behavior
-    if (!currentThreadId || currentThreadId === mockThread.id) {
-      const userMessage: Message = {
-        id: Date.now().toString(),
-        role: "user",
-        content: inputValue.trim(),
-        parentId: replyTo || undefined,
-        timestamp: new Date(),
-      };
-
-      setMessages((prev) => [...prev, userMessage]);
-      setReplyTo(null);
-
-      // Simulate assistant response after delay
-      setTimeout(() => {
-        const assistantMessage: Message = {
-          id: (Date.now() + 1).toString(),
-          role: "assistant",
-          content: "I've processed your message and updated the context. What would you like to do next?",
-          timestamp: new Date(),
-        };
-
-        setMessages((prev) => [...prev, assistantMessage]);
-        setIsSending(false);
-      }, 600);
-
-      return;
-    }
-
-    // For server-backed threads, send through the chat endpoint so server creates user+assistant messages
     try {
-      const payload = {
-        message: inputValue.trim(),
-        context_id: currentThreadId,
-        parent_message_id: replyTo || undefined,
-      };
-
-      const res = await fetch(`/api/chat/`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+      const response = await sendMessage({
+        message,
+        contextId: isValidObjectId(currentThreadId) ? currentThreadId : undefined,
+        parentMessageId: replyTo || undefined,
       });
 
-      if (!res.ok) {
-        throw new Error(`chat API error: ${res.status}`);
+      // Refresh messages to get the latest from server
+      if (currentThreadId && isValidObjectId(currentThreadId)) {
+        const fetchedMessages = await fetchMessages(currentThreadId);
+        setMessages(fetchedMessages);
+      } else {
+        // If no context, append the new messages locally
+        const userMsg: Message = {
+          id: Date.now().toString(),
+          role: "user",
+          content: message,
+          timestamp: new Date(),
+          parentId: replyTo || undefined,
+        };
+        const assistantMsg: Message = {
+          id: response.message_id,
+          role: "assistant",
+          content: response.response,
+          timestamp: new Date(),
+        };
+        setMessages([...messages, userMsg, assistantMsg]);
       }
-
-      // Refresh messages for the context
-      const messagesRes = await fetch(`/api/contexts/${currentThreadId}/messages`);
-      if (messagesRes.ok) {
-        const data = await messagesRes.json();
-        const converted: Message[] = data.map((m: any) => ({
-          id: String(m.id),
-          role: m.role,
-          content: m.content,
-          timestamp: new Date(m.created_at),
-          parentId: m.parent_id || undefined,
-          isCheckpoint: !!m.is_checkpoint,
-          summary: m.summary,
-        }));
-        setMessages(converted);
-      }
-
-      setReplyTo(null);
     } catch (e) {
       console.error("Failed to send chat message", e);
-    } finally {
-      setIsSending(false);
     }
   };
 
@@ -229,39 +198,20 @@ export default function ThreadPage() {
   // load thread from server if threadId provided
   useEffect(() => {
     const load = async () => {
-      if (!threadId) {
-        setMessages(mockThread.messages);
-        setCurrentThreadId(mockThread.id);
+      if (!threadId || !isValidObjectId(threadId)) {
+        setMessages([]);
+        setCurrentThreadId(undefined);
         return;
       }
 
       try {
-        const res = await fetch(`/api/contexts/${threadId}/messages`);
-        if (!res.ok) {
-          // fallback to mockThread
-          setMessages(mockThread.messages);
-          setCurrentThreadId(mockThread.id);
-          return;
-        }
-
-        const data = await res.json();
-        // server messages use created_at and roles; convert to local Message shape
-        const converted: Message[] = data.map((m: any) => ({
-          id: String(m.id),
-          role: m.role,
-          content: m.content,
-          timestamp: new Date(m.created_at),
-          parentId: m.parent_id || undefined,
-          isCheckpoint: !!m.is_checkpoint,
-          summary: m.summary,
-        }));
-
-        setMessages(converted);
+        const fetchedMessages = await fetchMessages(threadId);
+        setMessages(fetchedMessages);
         setCurrentThreadId(threadId);
       } catch (e) {
         console.error(e);
-        setMessages(mockThread.messages);
-        setCurrentThreadId(mockThread.id);
+        setMessages([]);
+        setCurrentThreadId(undefined);
       }
     };
     load();
@@ -272,8 +222,8 @@ export default function ThreadPage() {
       {/* Main Chat Area */}
       <div className="flex-1 flex flex-col">
         {/* Messages */}
-        <ScrollArea className="flex-1 p-4">
-          <div className="space-y-6 pb-4">
+        <ScrollArea className="flex-1 p-6">
+          <div className="max-w-3xl mx-auto space-y-6 pb-4">
             {messages.length === 0 ? (
               <EmptyState />
             ) : (
@@ -287,7 +237,7 @@ export default function ThreadPage() {
                 const renderNode = (message: Message) => {
                   const children = getChildren(message.id);
                   return (
-                    <div key={message.id}>
+                    <div key={message.id} className="animate-in fade-in slide-in-from-bottom-2 duration-300">
                       {message.isCheckpoint ? (
                         <CheckpointCard
                           summary={message.summary || ""}
@@ -316,7 +266,7 @@ export default function ThreadPage() {
                       )}
 
                       {children.length > 0 && (
-                        <div className="ml-6 border-l-2 border-muted-foreground/20 pl-4 mt-2 space-y-4">
+                        <div className="ml-6 pl-4 mt-3 space-y-4 border-l-2 border-gray-200 dark:border-gray-700">
                           {children.map((c) => renderNode(c))}
                         </div>
                       )}
@@ -330,6 +280,17 @@ export default function ThreadPage() {
 
                 return roots.map((r) => renderNode(r));
               })()
+            )}
+            {isSending && (
+              <div className="flex items-center gap-3 py-4 text-muted-foreground">
+                <Spinner />
+                <span className="text-sm">AI is thinking...</span>
+              </div>
+            )}
+            {error && (
+              <div className="bg-destructive/10 border border-destructive/20 text-destructive px-4 py-3 rounded-lg text-sm">
+                <span className="font-medium">Error:</span> {error}
+              </div>
             )}
             <div ref={messagesEndRef} />
           </div>

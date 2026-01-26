@@ -73,14 +73,14 @@ docker run -d -p 27017:27017 --name treechat-mongo mongo:latest
 5. **Run the server**
 
 ```bash
-uvicorn server.main:app --reload --host 0.0.0.0 --port 8000
+uvicorn server.main:app --reload --host 0.0.0.0 --port 5000
 ```
 
 6. **Access the API**
 
-- API: http://localhost:8000
-- Interactive docs: http://localhost:8000/docs
-- Alternative docs: http://localhost:8000/redoc
+- API: http://localhost:5000
+- Interactive docs: http://localhost:5000/docs
+- Alternative docs: http://localhost:5000/redoc
 
 ## 📚 API Overview
 
@@ -111,7 +111,7 @@ uvicorn server.main:app --reload --host 0.0.0.0 --port 8000
 ### Create a task from natural language
 
 ```bash
-curl -X POST http://localhost:8000/api/tasks/ \
+curl -X POST http://localhost:5000/api/tasks/ \
   -H "Content-Type: application/json" \
   -d '{
     "title": "Refill gas cylinder",
@@ -124,19 +124,19 @@ curl -X POST http://localhost:8000/api/tasks/ \
 ### Get today's tasks
 
 ```bash
-curl http://localhost:8000/api/tasks/today
+curl http://localhost:5000/api/tasks/today
 ```
 
 ### Create a branching conversation
 
 ```bash
 # Create root message
-curl -X POST http://localhost:8000/api/messages/ \
+curl -X POST http://localhost:5000/api/messages/ \
   -H "Content-Type: application/json" \
   -d '{"content": "I need to organize my week", "role": "user"}'
 
 # Create child branch
-curl -X POST http://localhost:8000/api/messages/ \
+curl -X POST http://localhost:5000/api/messages/ \
   -H "Content-Type: application/json" \
   -d '{"content": "Let me start with college tasks", "role": "user", "parent_id": "<root_message_id>"}'
 ```
