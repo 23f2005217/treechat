@@ -15,6 +15,7 @@ export const router = createBrowserRouter([
     errorElement: <NotFoundPage />,
     children: [
       { index: true, element: <HomePage /> },
+      { path: "thread/new", element: <ThreadPage /> },
       { path: "thread/:threadId", element: <ThreadPage /> },
       // { path: "tasks", element: <TasksPage /> },
       { path: "search", element: <SearchPage /> },
