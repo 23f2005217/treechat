@@ -276,8 +276,7 @@ export default function ThreadPage() {
 
     switch (action) {
       case "create":
-      case "add":
-      case null: {
+      case "add": {
         const payload = {
           title: title || "New reminder",
           reminder_time: args.time || args.t,
