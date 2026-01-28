@@ -1,11 +1,12 @@
 import { useMemo, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { FolderIcon, MessageSquare, GitFork } from "lucide-react";
 import { TreeView, type TreeDataItem } from "./tree-view";
 import { SidebarItemActions } from "./SidebarItemActions";
 import { useSidebarStore } from "../store/useSidebarStore";
 import { useFolders } from "../hooks/useFolders";
 import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
+import { cn } from "../lib/utils";
 
 type SidebarTreeItem = ReturnType<typeof useSidebarStore.getState>["treeData"][number];
 
@@ -14,6 +15,7 @@ export function SidebarTree() {
   const searchQuery = useSidebarStore((state) => state.searchQuery);
   const expandedFolders = useSidebarStore((state) => state.expandedFolders);
   const navigate = useNavigate();
+  const { threadId: currentThreadId } = useParams<{ threadId: string }>();
   const { addThreadToFolder } = useFolders();
 
   const filteredTreeData = useMemo(() => {
@@ -60,15 +62,19 @@ export function SidebarTree() {
     const typedItem = item as SidebarTreeItem;
     const isFolder = typedItem.type === "folder";
     const isFork = typedItem.type === "thread" && typedItem.parentContextId;
+    const isActive = typedItem.type === "thread" && typedItem.id === currentThreadId;
 
     return (
-      <div className="flex items-center gap-2 flex-1 min-w-0">
+      <div className={cn(
+        "flex items-center gap-2 flex-1 min-w-0 rounded-md transition-colors",
+        isActive && "bg-primary/10 text-primary font-medium"
+      )}>
         {isFork && (
           <Tooltip>
             <TooltipTrigger asChild>
-              <div className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-blue-100 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800">
-                <GitFork className="h-3 w-3 text-blue-600 dark:text-blue-400" />
-                <span className="text-xs text-blue-600 dark:text-blue-400 font-medium">
+              <div className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-accent/30 border border-accent/40">
+                <GitFork className="h-3 w-3 text-accent-foreground" />
+                <span className="text-xs text-accent-foreground font-medium">
                   {typedItem.forkType === "summary" ? "Summary" : typedItem.forkType === "full" ? "Full" : "Fork"}
                 </span>
               </div>
@@ -83,16 +89,16 @@ export function SidebarTree() {
             </TooltipContent>
           </Tooltip>
         )}
-        <span className="text-sm truncate">{item.name}</span>
+        <span className={cn("text-sm truncate", isActive && "text-primary")}>{item.name}</span>
         {isFolder && typedItem.children && typedItem.children.length > 0 && (
-          <span className="text-xs text-muted-foreground ml-auto">
+          <span className="text-xs text-muted-foreground ml-auto mr-1">
             {typedItem.children.length}
           </span>
         )}
         <SidebarItemActions item={item} />
       </div>
     );
-  }, []);
+  }, [currentThreadId]);
 
   return (
     <div className="flex-1 overflow-y-auto">

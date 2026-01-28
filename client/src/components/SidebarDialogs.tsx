@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
@@ -23,6 +23,7 @@ export function SidebarDialogs() {
     setRenameDialog,
     setDeleteDialog,
     setNewItemName,
+    treeData,
   } = useSidebarStore();
 
   const { createThread, renameThread, deleteThread } = useThreads();
@@ -30,56 +31,97 @@ export function SidebarDialogs() {
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleCreateItem = async () => {
-    if (!newItemName.trim()) return;
-    setIsLoading(true);
+  // Helper to find item type from tree data
+  const findItemType = useCallback((itemId: string): "folder" | "thread" | null => {
+    const findInTree = (items: typeof treeData): "folder" | "thread" | null => {
+      for (const item of items) {
+        if (item.id === itemId) return item.type;
+        if (item.children) {
+          const found = findInTree(item.children);
+          if (found) return found;
+        }
+      }
+      return null;
+    };
+    return findInTree(treeData);
+  }, [treeData]);
 
-    if (createDialog.type === "thread") {
-      const threadId = await createThread(newItemName.trim());
+  const handleCreateItem = async () => {
+    // Don't allow creating threads with empty names - navigate to new thread page instead
+    if (createDialog.type === "thread" && !newItemName.trim()) {
+      // For threads, navigate to the thread page where user can start typing
       setCreateDialog({ isOpen: false, parentId: null, type: "thread" });
       setNewItemName("");
-      if (threadId) {
-        navigate(`/thread/${threadId}`);
-      }
-    } else {
-      await createFolder(newItemName.trim());
-      setCreateDialog({ isOpen: false, parentId: null, type: "folder" });
-      setNewItemName("");
+      navigate("/thread/new");
+      return;
     }
-    setIsLoading(false);
+    
+    if (createDialog.type === "folder" && !newItemName.trim()) return;
+    
+    setIsLoading(true);
+
+    try {
+      if (createDialog.type === "thread") {
+        const threadId = await createThread(newItemName.trim());
+        setCreateDialog({ isOpen: false, parentId: null, type: "thread" });
+        setNewItemName("");
+        if (threadId) {
+          navigate(`/thread/${threadId}`);
+        }
+      } else {
+        await createFolder(newItemName.trim());
+        setCreateDialog({ isOpen: false, parentId: null, type: "folder" });
+        setNewItemName("");
+      }
+    } catch (error) {
+      console.error("Failed to create item:", error);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleRenameItem = async () => {
     if (!renameDialog.currentName.trim()) return;
     setIsLoading(true);
 
-    const isMongoId = /^[0-9a-fA-F]{24}$/.test(renameDialog.itemId);
-    if (isMongoId) {
-      const isFolder = deleteDialog.type === "folder";
-      if (isFolder) {
-        await renameFolder(renameDialog.itemId, renameDialog.currentName.trim());
-      } else {
-        await renameThread(renameDialog.itemId, renameDialog.currentName.trim());
+    try {
+      const isMongoId = /^[0-9a-fA-F]{24}$/.test(renameDialog.itemId);
+      if (isMongoId) {
+        // Find the actual item type from tree data instead of using deleteDialog.type
+        const itemType = findItemType(renameDialog.itemId);
+        if (itemType === "folder") {
+          await renameFolder(renameDialog.itemId, renameDialog.currentName.trim());
+        } else {
+          await renameThread(renameDialog.itemId, renameDialog.currentName.trim());
+        }
       }
       setRenameDialog({ isOpen: false, itemId: "", currentName: "" });
+    } catch (error) {
+      console.error("Failed to rename item:", error);
+    } finally {
+      setIsLoading(false);
     }
-    setIsLoading(false);
   };
 
   const handleDeleteItem = async () => {
     setIsLoading(true);
 
-    const isMongoId = /^[0-9a-fA-F]{24}$/.test(deleteDialog.itemId);
-    if (isMongoId) {
-      if (deleteDialog.type === "folder") {
-        await deleteFolder(deleteDialog.itemId);
-      } else {
-        await deleteThread(deleteDialog.itemId);
-        navigate("/");
+    try {
+      const isMongoId = /^[0-9a-fA-F]{24}$/.test(deleteDialog.itemId);
+      if (isMongoId) {
+        if (deleteDialog.type === "folder") {
+          await deleteFolder(deleteDialog.itemId);
+        } else {
+          await deleteThread(deleteDialog.itemId);
+          navigate("/");
+        }
       }
       setDeleteDialog({ isOpen: false, itemId: "", itemName: "", type: "thread" });
+    } catch (error) {
+      console.error("Failed to delete item:", error);
+    } finally {
+      setIsLoading(false);
     }
-    setIsLoading(false);
   };
 
   return (

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import axios from "axios";
 import { useChatStore } from "../store/useChatStore";
 import type { Message } from "../types/chat";
@@ -7,6 +7,7 @@ interface SendMessageParams {
   message: string;
   contextId?: string;
   parentMessageId?: string;
+  optimistic?: boolean; // Whether to add messages optimistically
 }
 
 interface ChatResponse {
@@ -19,21 +20,11 @@ interface ChatResponse {
 export function useChat() {
   const [error, setError] = useState<string | null>(null);
   
-  const { addMessage, setIsSending } = useChatStore();
+  const { setIsSending } = useChatStore();
 
-  const sendMessage = async (params: SendMessageParams) => {
+  const sendMessage = useCallback(async (params: SendMessageParams): Promise<ChatResponse> => {
     setError(null);
     setIsSending(true);
-
-    const userMessage: Message = {
-      id: Date.now().toString(),
-      role: "user",
-      content: params.message.trim(),
-      parentId: params.parentMessageId,
-      timestamp: new Date(),
-    };
-
-    addMessage(userMessage);
 
     try {
       const response = await axios.post<ChatResponse>("/api/chat/", {
@@ -41,28 +32,22 @@ export function useChat() {
         context_id: params.contextId,
         parent_message_id: params.parentMessageId,
       });
-
-      const assistantMessage: Message = {
-        id: response.data.message_id,
-        role: "assistant",
-        content: response.data.response,
-        timestamp: new Date(),
-        parentId: userMessage.id,
-      };
-
-      addMessage(assistantMessage);
       
       return response.data;
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : "Failed to send message";
+      const errorMessage = axios.isAxiosError(err) 
+        ? err.response?.data?.detail || err.message 
+        : err instanceof Error 
+          ? err.message 
+          : "Failed to send message";
       setError(errorMessage);
       throw err;
     } finally {
       setIsSending(false);
     }
-  };
+  }, [setIsSending]);
 
-  const fetchMessages = async (contextId: string): Promise<Message[]> => {
+  const fetchMessages = useCallback(async (contextId: string): Promise<Message[]> => {
     try {
       const response = await axios.get(`/api/contexts/${contextId}/messages`);
       return response.data.map((m: any) => ({
@@ -75,18 +60,44 @@ export function useChat() {
         summary: m.summary,
       }));
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : "Failed to fetch messages";
+      const errorMessage = axios.isAxiosError(err) 
+        ? err.response?.data?.detail || err.message 
+        : err instanceof Error 
+          ? err.message 
+          : "Failed to fetch messages";
       setError(errorMessage);
       if (axios.isAxiosError(err) && err.response?.status === 404) {
         return [];
       }
       throw err;
     }
-  };
+  }, []);
+
+  const clearError = useCallback(() => {
+    setError(null);
+  }, []);
+
+  const tagMessageAsTask = useCallback(async (messageId: string, tag: string): Promise<void> => {
+    try {
+      await axios.post(`/api/messages/${messageId}/tag`, {
+        tag: tag,
+      });
+    } catch (err) {
+      const errorMessage = axios.isAxiosError(err)
+        ? err.response?.data?.detail || err.message
+        : err instanceof Error
+          ? err.message
+          : "Failed to tag message";
+      setError(errorMessage);
+      throw err;
+    }
+  }, []);
 
   return {
     sendMessage,
     fetchMessages,
+    tagMessageAsTask,
     error,
+    clearError,
   };
 }

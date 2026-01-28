@@ -87,14 +87,21 @@ export function useThreads() {
     }
   }, [setTreeData]);
 
-  const createThread = useCallback(async (title: string): Promise<string | null> => {
+  const createThread = useCallback(async (title: string, initialMessage?: string): Promise<string | null> => {
     try {
-      const response = await axios.post("/api/contexts/", { title });
+      // Don't create threads without content - require at least a title or initial message
+      const trimmedTitle = title.trim();
+      if (!trimmedTitle && !initialMessage?.trim()) {
+        console.warn("Cannot create empty thread: title or initial message required");
+        return null;
+      }
+      
+      const response = await axios.post("/api/contexts/", { title: trimmedTitle || "New Conversation" });
       const newThreadId = response.data._id || response.data.id;
       
       const newThread: SidebarTreeItem = {
         id: newThreadId,
-        name: title || "Untitled Thread",
+        name: trimmedTitle || "Untitled Thread",
         icon: MessageSquare,
         type: "thread" as const,
         createdAt: Date.now(),

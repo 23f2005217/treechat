@@ -57,19 +57,13 @@ export function SidebarItemActions({ item }: SidebarItemActionsProps) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <div
-          role="button"
-          tabIndex={0}
-          className="h-6 w-6 opacity-0 group-hover:opacity-100 hover:bg-accent ml-auto rounded-md flex items-center justify-center cursor-pointer"
+        <button
+          type="button"
+          className="h-6 w-6 opacity-0 group-hover:opacity-100 hover:bg-accent ml-auto rounded-md flex items-center justify-center cursor-pointer bg-transparent border-none"
           onClick={(e) => e.stopPropagation()}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' || e.key === ' ') {
-              e.stopPropagation();
-            }
-          }}
         >
           <MoreHorizontal className="h-3 w-3" />
-        </div>
+        </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
         <DropdownMenuItem onClick={handleRename}>

@@ -260,9 +260,21 @@ const TreeNode = ({
     renderItem?: (params: TreeRenderItemParams) => React.ReactNode
     level?: number
 }) => {
+    // Sync local state with external expandedItemIds prop
+    const isExpandedExternally = expandedItemIds.includes(item.id)
     const [value, setValue] = React.useState(
-        expandedItemIds.includes(item.id) ? [item.id] : []
+        isExpandedExternally ? [item.id] : []
     )
+    
+    // Update local state when external expandedItemIds changes
+    React.useEffect(() => {
+        if (isExpandedExternally && !value.includes(item.id)) {
+            setValue([item.id])
+        } else if (!isExpandedExternally && value.includes(item.id)) {
+            setValue([])
+        }
+    }, [isExpandedExternally, item.id, value])
+    
     const [isDragOver, setIsDragOver] = React.useState(false)
     const hasChildren = !!item.children?.length
     const isSelected = selectedItemId === item.id
