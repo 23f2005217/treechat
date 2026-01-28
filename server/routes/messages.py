@@ -2,18 +2,17 @@ from fastapi import APIRouter, HTTPException
 from typing import List, Optional
 
 from server.models import Message, MessageCreate, MessageRole
-from server.logger import Logger
+from server.utils.route_logger import route_logger
 
 router = APIRouter()
-logger = Logger.get("messages")
 
 
 @router.post("/", response_model=Message, status_code=201)
+@route_logger
 async def create_message(message_data: MessageCreate):
     """Create a new message in the tree"""
     message = Message(**message_data.model_dump())
     await message.insert()
-    logger.info(f"Created message: {message.id}")
 
     if message.parent_id:
         parent = await Message.get(message.parent_id)
@@ -25,11 +24,11 @@ async def create_message(message_data: MessageCreate):
 
 
 @router.delete("/{message_id}", status_code=204)
+@route_logger
 async def delete_message(message_id: str):
     """Delete a message (and optionally its subtree)"""
     message = await Message.get(message_id)
     if not message:
-        logger.warning(f"Message not found: {message_id}")
         raise HTTPException(status_code=404, detail="Message not found")
 
     if message.parent_id:
@@ -39,11 +38,11 @@ async def delete_message(message_id: str):
             await parent.save()
 
     await message.delete()
-    logger.info(f"Deleted message: {message_id}")
     return None
 
 
 @router.get("/", response_model=List[Message])
+@route_logger
 async def list_messages(
     context_id: Optional[str] = None, parent_id: Optional[str] = None, limit: int = 50
 ):
@@ -60,6 +59,7 @@ async def list_messages(
 
 
 @router.get("/tree/{root_id}", response_model=dict)
+@route_logger
 async def get_message_tree(root_id: str, max_depth: int = 10):
     """Get the full message tree starting from a root message"""
 
@@ -94,27 +94,10 @@ async def get_message_tree(root_id: str, max_depth: int = 10):
 
 
 @router.get("/{message_id}", response_model=Message)
+@route_logger
 async def get_message(message_id: str):
     """Get a specific message"""
     message = await Message.get(message_id)
     if not message:
         raise HTTPException(status_code=404, detail="Message not found")
     return message
-
-
-@router.delete("/{message_id}", status_code=204)
-async def delete_message(message_id: str):
-    """Delete a message (and optionally its subtree)"""
-    message = await Message.get(message_id)
-    if not message:
-        raise HTTPException(status_code=404, detail="Message not found")
-
-    # Remove from parent's children list
-    if message.parent_id:
-        parent = await Message.get(message.parent_id)
-        if parent and str(message.id) in parent.children_ids:
-            parent.children_ids.remove(str(message.id))
-            await parent.save()
-
-    await message.delete()
-    return None

@@ -20,6 +20,10 @@ class Settings(BaseSettings):
     HOST: str = "0.0.0.0"
     PORT: int = 8000
 
+    # Task Detection Settings
+    TASK_CONFIDENCE_THRESHOLD: float = 0.75  # Minimum confidence to create a task
+    TASK_DETECTION_ENABLED: bool = True  # Master switch for task detection
+
     model_config = SettingsConfigDict(
         env_file=Path(__file__).parent / ".env",
         env_file_encoding="utf-8",

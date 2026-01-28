@@ -3,22 +3,25 @@ from typing import List, Optional
 from datetime import datetime, timedelta
 
 from server.models import Task, TaskCreate, TaskUpdate, TaskDomain, UrgencyLevel
-from server.logger import Logger
+from server.utils.route_logger import route_logger
 
 router = APIRouter()
-logger = Logger.get("tasks")
 
 
 @router.post("/", response_model=Task, status_code=201)
+@route_logger
 async def create_task(task_data: TaskCreate):
     """Create a new task"""
+    if not task_data.title or not task_data.title.strip():
+        raise HTTPException(status_code=400, detail="Task title is required")
+    
     task = Task(**task_data.model_dump())
     await task.insert()
-    logger.info(f"Created task: {task.id}")
     return task
 
 
 @router.get("/", response_model=List[Task])
+@route_logger
 async def list_tasks(
     domain: Optional[TaskDomain] = None,
     completed: Optional[bool] = None,
@@ -41,6 +44,7 @@ async def list_tasks(
 
 
 @router.get("/upcoming", response_model=List[Task])
+@route_logger
 async def get_upcoming_tasks(days: int = 7):
     """Get tasks due in the next N days"""
     now = datetime.utcnow()
@@ -58,6 +62,7 @@ async def get_upcoming_tasks(days: int = 7):
 
 
 @router.get("/today", response_model=List[Task])
+@route_logger
 async def get_today_tasks():
     """Get tasks for today (high priority items)"""
     now = datetime.utcnow()
@@ -74,6 +79,7 @@ async def get_today_tasks():
 
 
 @router.get("/by-domain", response_model=dict)
+@route_logger
 async def get_tasks_by_domain():
     """Get tasks grouped by domain"""
     all_tasks = await Task.find(Task.completed == False).to_list()
@@ -89,6 +95,7 @@ async def get_tasks_by_domain():
 
 
 @router.get("/{task_id}", response_model=Task)
+@route_logger
 async def get_task(task_id: str):
     """Get a specific task by ID"""
     task = await Task.get(task_id)
@@ -98,18 +105,17 @@ async def get_task(task_id: str):
 
 
 @router.patch("/{task_id}", response_model=Task)
+@route_logger
 async def update_task(task_id: str, task_update: TaskUpdate):
     """Update a task"""
     task = await Task.get(task_id)
     if not task:
-        logger.warning(f"Task not found: {task_id}")
         raise HTTPException(status_code=404, detail="Task not found")
 
     update_data = task_update.model_dump(exclude_unset=True)
 
     if "completed" in update_data and update_data["completed"]:
         update_data["completed_at"] = datetime.utcnow()
-        logger.info(f"Marked task as completed: {task_id}")
 
     update_data["updated_at"] = datetime.utcnow()
 
@@ -117,18 +123,16 @@ async def update_task(task_id: str, task_update: TaskUpdate):
         setattr(task, field, value)
 
     await task.save()
-    logger.debug(f"Updated task: {task_id}")
     return task
 
 
 @router.delete("/{task_id}", status_code=204)
+@route_logger
 async def delete_task(task_id: str):
     """Delete a task"""
     task = await Task.get(task_id)
     if not task:
-        logger.warning(f"Task not found: {task_id}")
         raise HTTPException(status_code=404, detail="Task not found")
 
     await task.delete()
-    logger.info(f"Deleted task: {task_id}")
     return None

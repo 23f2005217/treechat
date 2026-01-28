@@ -52,6 +52,13 @@ class UrgencyEngine:
     def _compute_time_score(self, due_date: datetime) -> float:
         """Compute urgency score based on time until due date"""
         now = datetime.utcnow()
+        
+        # Ensure both datetimes are timezone-aware or both naive
+        if due_date.tzinfo is not None and now.tzinfo is None:
+            now = now.replace(tzinfo=due_date.tzinfo)
+        elif due_date.tzinfo is None and now.tzinfo is not None:
+            due_date = due_date.replace(tzinfo=now.tzinfo)
+        
         time_diff = (due_date - now).total_seconds()
         
         if time_diff < 0:
@@ -95,6 +102,13 @@ class UrgencyEngine:
             return 0.3  # Default moderate urgency
         
         now = datetime.utcnow()
+        
+        # Ensure both datetimes are timezone-aware or both naive
+        if due_date.tzinfo is not None and now.tzinfo is None:
+            now = now.replace(tzinfo=due_date.tzinfo)
+        elif due_date.tzinfo is None and now.tzinfo is not None:
+            due_date = due_date.replace(tzinfo=now.tzinfo)
+        
         time_available_hours = (due_date - now).total_seconds() / 3600
         effort_hours = effort_minutes / 60
         
@@ -161,3 +175,49 @@ class UrgencyEngine:
 
 # Singleton instance
 urgency_engine = UrgencyEngine()
+
+
+class UrgencyDetector:
+    """Simple interface for detecting urgency from text"""
+    
+    def detect(self, text: str) -> dict:
+        """Detect urgency level from text"""
+        text_lower = text.lower()
+        
+        # Urgency keywords with scores
+        urgent_keywords = [
+            ("asap", 1.0),
+            ("urgent", 0.9),
+            ("critical", 0.9),
+            ("immediately", 0.9),
+            ("right now", 0.9),
+            ("today", 0.85),
+            ("tomorrow", 0.7),
+            ("soon", 0.6),
+            ("deadline", 0.8),
+            ("due", 0.7),
+        ]
+        
+        max_score = 0.0
+        detected_urgency = "low"
+        
+        for keyword, score in urgent_keywords:
+            if keyword in text_lower:
+                if score > max_score:
+                    max_score = score
+        
+        # Map score to urgency level
+        if max_score >= 0.8:
+            detected_urgency = "critical"
+        elif max_score >= 0.6:
+            detected_urgency = "high"
+        elif max_score >= 0.4:
+            detected_urgency = "medium"
+        else:
+            detected_urgency = "low"
+        
+        return {
+            "urgency": detected_urgency,
+            "score": max_score,
+            "keywords_found": [kw for kw, _ in urgent_keywords if kw in text_lower]
+        }

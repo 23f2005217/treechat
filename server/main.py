@@ -6,8 +6,9 @@ from contextlib import asynccontextmanager
 
 from server.config import settings
 from server.models import Task, Message, Context, Project, Folder
-from server.routes import tasks, messages, contexts, chat, folders
+from server.routes import tasks, messages, contexts, chat, folders, search, summary
 from server.logger import Logger
+from server.utils.route_logger import route_logger
 
 logger = Logger.get("main")
 
@@ -71,9 +72,12 @@ app.include_router(messages.router, prefix="/api/messages", tags=["messages"])
 app.include_router(contexts.router, prefix="/api/contexts", tags=["contexts"])
 app.include_router(chat.router, prefix="/api/chat", tags=["chat"])
 app.include_router(folders.router, prefix="/api/folders", tags=["folders"])
+app.include_router(search.router, prefix="/api/search", tags=["search"])
+app.include_router(summary.router, prefix="/api/summary", tags=["summary"])
 
 
 @app.get("/")
+@route_logger
 async def root():
     return {
         "message": "TreeChat API - AI-powered task manager",
@@ -83,7 +87,12 @@ async def root():
             "Auto-grouping by domain",
             "Tree-based chat",
             "Time-aware urgency",
-            "Natural language queries",
+            "Chat-first summaries (no dashboards)",
+            "Natural language rescheduling",
+            "Undo-first safety model",
+            "Task decay detection",
+            "Soft priorities (no P0/P1/P2)",
+            "Energy-aware filtering",
         ],
         "endpoints": {
             "docs": "/docs",
@@ -92,10 +101,12 @@ async def root():
             "messages": "/api/messages",
             "contexts": "/api/contexts",
             "folders": "/api/folders",
+            "summary": "/api/summary",
         },
     }
 
 
 @app.get("/health")
+@route_logger
 async def health_check():
     return {"status": "healthy", "service": "treechat-api"}

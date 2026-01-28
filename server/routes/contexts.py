@@ -5,22 +5,54 @@ from bson import ObjectId
 
 from server.models import Context, ContextCreate, Message, ForkContextRequest, ForkType
 from server.models import MessageRole
-from server.logger import Logger
+from server.utils.route_logger import route_logger
 
 router = APIRouter()
-logger = Logger.get("contexts")
 
 
 @router.post("/", response_model=Context, status_code=201)
+@route_logger
 async def create_context(context_data: ContextCreate):
     """Create a new conversation context"""
+    # Validate title - don't allow empty titles
+    title = context_data.title.strip() if context_data.title else ""
+    if not title:
+        raise HTTPException(status_code=400, detail="Context title is required")
+    
+    context_data_dict = context_data.model_dump()
+    context_data_dict['title'] = title
+    
+    context = Context(**context_data_dict)
+    await context.insert()
+    return context
+
+
+@router.post("/with-message", response_model=Context, status_code=201)
+@route_logger
+async def create_context_with_message(context_data: ContextCreate, first_message: str):
+    """Create a new conversation context with an initial message"""
+    from server.models import Message, MessageRole
+    
+    # Create the context
     context = Context(**context_data.model_dump())
     await context.insert()
-    logger.info(f"Created context: {context.id}")
+    
+    # Create the first message
+    if first_message and first_message.strip():
+        message = Message(
+            content=first_message.strip(),
+            role=MessageRole.USER,
+            context_id=str(context.id),
+        )
+        await message.insert()
+        context.root_message_id = str(message.id)
+        await context.save()
+    
     return context
 
 
 @router.get("/", response_model=List[Context])
+@route_logger
 async def list_contexts(limit: int = 20, skip: int = 0):
     """List all conversation contexts"""
     contexts = (
@@ -30,6 +62,7 @@ async def list_contexts(limit: int = 20, skip: int = 0):
 
 
 @router.get("/{context_id}", response_model=Context)
+@route_logger
 async def get_context(context_id: str):
     """Get a specific context"""
     if not ObjectId.is_valid(context_id):
@@ -47,6 +80,7 @@ async def get_context(context_id: str):
 
 
 @router.get("/{context_id}/messages", response_model=List[Message])
+@route_logger
 async def get_context_messages(context_id: str):
     """Get all messages in a context"""
     if not ObjectId.is_valid(context_id):
@@ -65,6 +99,7 @@ async def get_context_messages(context_id: str):
 
 
 @router.patch("/{context_id}", response_model=Context)
+@route_logger
 async def update_context(
     context_id: str, title: Optional[str] = None, summary: Optional[str] = None
 ):
@@ -85,6 +120,7 @@ async def update_context(
 
 
 @router.delete("/{context_id}", status_code=204)
+@route_logger
 async def delete_context(context_id: str):
     """Delete a context"""
     context = await Context.get(context_id)
@@ -96,11 +132,11 @@ async def delete_context(context_id: str):
 
 
 @router.post("/fork", response_model=Context, status_code=201)
+@route_logger
 async def fork_context(request: ForkContextRequest):
     """Fork a thread from an existing context with different context copy options"""
     source_context = await Context.get(request.source_context_id)
     if not source_context:
-        logger.warning(f"Source context not found: {request.source_context_id}")
         raise HTTPException(status_code=404, detail="Source context not found")
 
     title = request.title or f"Fork of {source_context.title}"
@@ -122,7 +158,6 @@ async def fork_context(request: ForkContextRequest):
         new_context.description = source_context.description
 
     await new_context.insert()
-    logger.info(f"Forked context: {new_context.id} from {request.source_context_id}")
 
     if request.fork_type == ForkType.FULL:
         source_messages = (
@@ -160,6 +195,9 @@ async def fork_context(request: ForkContextRequest):
                     m for m in source_messages if str(m.id) in message_ids_to_copy
                 ]
 
+        # Sort by created_at to ensure proper parent-child ordering
+        source_messages = sorted(source_messages, key=lambda m: m.created_at)
+        
         id_map = {}
         for msg in source_messages:
             new_parent_id = id_map.get(msg.parent_id) if msg.parent_id else None
@@ -172,11 +210,24 @@ async def fork_context(request: ForkContextRequest):
             )
             await new_msg.insert()
             id_map[str(msg.id)] = str(new_msg.id)
+            
+        # Set the root message if we copied messages
+        if source_messages:
+            # Find the root message (one with no parent or parent not in our copied set)
+            root_msg = None
+            for msg in source_messages:
+                if not msg.parent_id or msg.parent_id not in id_map:
+                    root_msg = msg
+                    break
+            if root_msg and str(root_msg.id) in id_map:
+                new_context.root_message_id = id_map[str(root_msg.id)]
+                await new_context.save()
 
     return new_context
 
 
 @router.get("/{context_id}/children", response_model=List[Context])
+@route_logger
 async def get_child_contexts(context_id: str):
     """Get all child threads of a context"""
     children = (
@@ -188,6 +239,7 @@ async def get_child_contexts(context_id: str):
 
 
 @router.post("/import", status_code=201)
+@route_logger
 async def import_context_with_messages(payload: Dict[str, Any]):
     """Create a new context and bulk import messages.
 

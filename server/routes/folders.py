@@ -1,5 +1,5 @@
 from fastapi import APIRouter, HTTPException
-from typing import List, Optional
+from typing import List
 from datetime import datetime
 
 from server.models import (
@@ -7,24 +7,23 @@ from server.models import (
     FolderCreate,
     FolderUpdate,
     AddThreadToFolderRequest,
-    RemoveThreadFromFolderRequest,
 )
-from server.logger import Logger
+from server.utils.route_logger import route_logger
 
 router = APIRouter()
-logger = Logger.get("folders")
 
 
 @router.post("/", response_model=Folder, status_code=201)
+@route_logger
 async def create_folder(folder_data: FolderCreate):
     """Create a new folder"""
     folder = Folder(**folder_data.model_dump())
     await folder.insert()
-    logger.info(f"Created folder: {folder.id} - {folder.name}")
     return folder
 
 
 @router.get("/", response_model=List[Folder])
+@route_logger
 async def list_folders(limit: int = 100, skip: int = 0):
     """List all folders"""
     folders = await Folder.find().sort("order").skip(skip).limit(limit).to_list()
@@ -32,6 +31,7 @@ async def list_folders(limit: int = 100, skip: int = 0):
 
 
 @router.get("/{folder_id}", response_model=Folder)
+@route_logger
 async def get_folder(folder_id: str):
     """Get a specific folder"""
     if len(folder_id) != 24:
@@ -45,6 +45,7 @@ async def get_folder(folder_id: str):
 
 
 @router.patch("/{folder_id}", response_model=Folder)
+@route_logger
 async def update_folder(folder_id: str, folder_data: FolderUpdate):
     """Update folder metadata"""
     if len(folder_id) != 24:
@@ -64,11 +65,11 @@ async def update_folder(folder_id: str, folder_data: FolderUpdate):
     folder.updated_at = datetime.utcnow()
     await folder.save()
 
-    logger.info(f"Updated folder: {folder_id}")
     return folder
 
 
 @router.delete("/{folder_id}", status_code=204)
+@route_logger
 async def delete_folder(folder_id: str):
     """Delete a folder"""
     if len(folder_id) != 24:
@@ -79,11 +80,11 @@ async def delete_folder(folder_id: str):
         raise HTTPException(status_code=404, detail="Folder not found")
 
     await folder.delete()
-    logger.info(f"Deleted folder: {folder_id}")
     return None
 
 
 @router.post("/{folder_id}/threads", response_model=Folder)
+@route_logger
 async def add_thread_to_folder(folder_id: str, request: AddThreadToFolderRequest):
     """Add a thread/context to a folder"""
     if len(folder_id) != 24:
@@ -97,12 +98,12 @@ async def add_thread_to_folder(folder_id: str, request: AddThreadToFolderRequest
         folder.thread_ids.append(request.thread_id)
         folder.updated_at = datetime.utcnow()
         await folder.save()
-        logger.info(f"Added thread {request.thread_id} to folder {folder_id}")
 
     return folder
 
 
 @router.delete("/{folder_id}/threads/{thread_id}", response_model=Folder)
+@route_logger
 async def remove_thread_from_folder(folder_id: str, thread_id: str):
     """Remove a thread from a folder"""
     if len(folder_id) != 24:
@@ -116,6 +117,5 @@ async def remove_thread_from_folder(folder_id: str, thread_id: str):
         folder.thread_ids.remove(thread_id)
         folder.updated_at = datetime.utcnow()
         await folder.save()
-        logger.info(f"Removed thread {thread_id} from folder {folder_id}")
 
     return folder
