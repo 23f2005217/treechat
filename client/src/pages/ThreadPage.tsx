@@ -146,8 +146,7 @@ export default function ThreadPage() {
 
     switch (action) {
       case "create":
-      case "add":
-      case null: {
+      case "add": {
         const payload = {
           title: title || "New task",
           description: args.description || "",
@@ -228,8 +227,7 @@ export default function ThreadPage() {
       }
 
       case "complete":
-      case "done":
-      case null: {
+      case "done": {
         const taskId = args.id || "";
         if (!taskId) throw new Error("Task ID required");
         
