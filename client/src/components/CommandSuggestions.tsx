@@ -31,10 +31,10 @@ const typeIcons: Record<string, LucideIcon> = {
 };
 
 const typeColors: Record<string, string> = {
-  type: "bg-blue-500/10 text-blue-600 border-blue-200",
-  action: "bg-green-500/10 text-green-600 border-green-200",
-  option: "bg-orange-500/10 text-orange-600 border-orange-200",
-  example: "bg-purple-500/10 text-purple-600 border-purple-200",
+  type: "bg-blue-500/20 text-blue-600 border-blue-500/30 dark:bg-blue-500/20 dark:text-blue-400 dark:border-blue-400/30",
+  action: "bg-green-500/20 text-green-600 border-green-500/30 dark:bg-green-500/20 dark:text-green-400 dark:border-green-400/30",
+  option: "bg-orange-500/20 text-orange-600 border-orange-500/30 dark:bg-orange-500/20 dark:text-orange-400 dark:border-orange-400/30",
+  example: "bg-purple-500/20 text-purple-600 border-purple-500/30 dark:bg-purple-500/20 dark:text-purple-400 dark:border-purple-400/30",
 };
 
 export function CommandSuggestions({
