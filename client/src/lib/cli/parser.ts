@@ -86,7 +86,7 @@ export function parseCommand(input: string): ParseResult {
   }
 
   // Generate suggestions based on current state
-  const suggestions = generateSuggestions(type, action, args);
+  const suggestions = generateSuggestions(type, action || null, args);
 
   return {
     type,
@@ -117,9 +117,9 @@ function generateSuggestions(
   }
 
   // Find matching command
-  const command = allCommands.find(
+  const command = action ? allCommands.find(
     cmd => cmd.type === type && cmd.action === action
-  );
+  ) : undefined;
 
   if (command) {
     // Suggest missing required options
