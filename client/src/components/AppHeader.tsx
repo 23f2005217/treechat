@@ -1,4 +1,5 @@
-import { ChevronRight, Search, Sun, Moon, Settings, Menu, X } from "lucide-react";
+import { ChevronRight, Search, Sun, Moon, Settings, Menu, X, Home } from "lucide-react";
+import { useNavigate, Link } from "react-router-dom";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
@@ -12,8 +13,10 @@ interface AppHeaderProps {
 }
 
 export function AppHeader({ threadTitle, onThemeToggle, isDark, onMobileMenuClick, isMobileSidebarOpen }: AppHeaderProps) {
+  const navigate = useNavigate();
+
   return (
-    <header className="flex items-center justify-between gap-4 p-4 border-b bg-background flex-shrink-0">
+    <header className="flex items-center justify-between gap-4 p-3 sm:p-4 border-b bg-background flex-shrink-0">
       {/* Left: Menu + Breadcrumb */}
       <div className="flex items-center gap-2 flex-shrink-0">
         {/* Mobile Menu Button */}
@@ -22,19 +25,20 @@ export function AppHeader({ threadTitle, onThemeToggle, isDark, onMobileMenuClic
             variant="ghost"
             size="icon"
             onClick={onMobileMenuClick}
-            className="lg:hidden"
+            className="lg:hidden h-9 w-9"
             aria-label="Toggle menu"
           >
             {isMobileSidebarOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
           </Button>
         )}
-        <h1 className="text-xl font-semibold text-foreground hidden sm:block">TreeChat</h1>
-        <h1 className="text-xl font-semibold text-foreground sm:hidden">TC</h1>
+        <Link to="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
+          <h1 className="text-xl font-semibold text-foreground hidden sm:block">TreeChat</h1>
+          <h1 className="text-xl font-semibold text-foreground sm:hidden">TC</h1>
+        </Link>
         {threadTitle && (
           <>
-            <ChevronRight className="h-4 w-4 text-muted-foreground hidden sm:block" />
-            <ChevronRight className="h-4 w-4 text-muted-foreground sm:hidden" />
-            <span className="text-sm text-muted-foreground truncate max-w-40 sm:max-w-60 md:max-w-80">
+            <ChevronRight className="h-4 w-4 text-muted-foreground" />
+            <span className="text-sm text-muted-foreground truncate max-w-32 sm:max-w-60 md:max-w-80">
               {threadTitle}
             </span>
           </>
@@ -47,8 +51,9 @@ export function AppHeader({ threadTitle, onThemeToggle, isDark, onMobileMenuClic
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             placeholder="Search messages and tasks..."
-            className="pl-9 bg-muted/50 text-sm"
-            onClick={() => window.location.href = "/search"}
+            className="pl-9 bg-muted/50 text-sm cursor-pointer"
+            onClick={() => navigate("/search")}
+            readOnly
           />
         </div>
       </div>
@@ -58,8 +63,9 @@ export function AppHeader({ threadTitle, onThemeToggle, isDark, onMobileMenuClic
         <Button
           variant="ghost"
           size="icon"
-          onClick={() => window.location.href = "/search"}
+          onClick={() => navigate("/search")}
           aria-label="Search"
+          className="h-9 w-9"
         >
           <Search className="h-5 w-5" />
         </Button>
@@ -72,8 +78,24 @@ export function AppHeader({ threadTitle, onThemeToggle, isDark, onMobileMenuClic
             <Button
               variant="ghost"
               size="icon"
+              onClick={() => navigate("/")}
+              aria-label="Home"
+              className="h-9 w-9"
+            >
+              <Home className="h-5 w-5" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>Home</TooltipContent>
+        </Tooltip>
+
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
               onClick={onThemeToggle}
               aria-label="Toggle theme"
+              className="h-9 w-9"
             >
               {isDark ? (
                 <Sun className="h-5 w-5" />
@@ -90,8 +112,9 @@ export function AppHeader({ threadTitle, onThemeToggle, isDark, onMobileMenuClic
             <Button
               variant="ghost"
               size="icon"
-              onClick={() => window.location.href = "/settings"}
+              onClick={() => navigate("/settings")}
               aria-label="Settings"
+              className="h-9 w-9"
             >
               <Settings className="h-5 w-5" />
             </Button>

@@ -18,13 +18,13 @@ export function ForkInfo({ forkType, parentTitle, forkedFromMessageId }: ForkInf
   return (
     <Tooltip>
       <TooltipTrigger asChild>
-        <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 hover:bg-blue-100 dark:hover:bg-blue-950/50 transition-colors cursor-default">
-          <GitFork className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+        <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-accent/30 border border-accent/40 hover:bg-accent/40 transition-colors cursor-default">
+          <GitFork className="h-4 w-4 text-accent-foreground" />
           <div className="flex items-center gap-2">
-            <span className="text-sm font-medium text-blue-700 dark:text-blue-300">
+            <span className="text-sm font-medium text-accent-foreground">
               Forked
             </span>
-            <Badge variant="outline" className="border-blue-300 dark:border-blue-700 text-blue-600 dark:text-blue-400 text-xs">
+            <Badge variant="outline" className="border-accent/50 text-accent-foreground text-xs">
               {forkTypeLabel}
             </Badge>
           </div>
