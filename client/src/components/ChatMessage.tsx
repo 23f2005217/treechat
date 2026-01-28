@@ -2,6 +2,7 @@ import { Copy, Pin, Forklift, ClipboardList } from "lucide-react";
 import { Button } from "./ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
 import { Badge } from "./ui/badge";
+import { MarkdownContent } from "./MarkdownContent";
 
 interface ChatMessageProps {
   id: string;
@@ -63,7 +64,11 @@ export function ChatMessage({
           )}
 
           {/* Message content */}
-          <p className="text-sm leading-relaxed whitespace-pre-wrap">{content}</p>
+          {isUser ? (
+            <p className="text-sm leading-relaxed whitespace-pre-wrap">{content}</p>
+          ) : (
+            <MarkdownContent content={content} className="text-sm leading-relaxed" />
+          )}
 
           {/* Timestamp */}
           <div className={`text-xs mt-2 ${isUser ? "text-white/80" : "text-muted-foreground"}`}>

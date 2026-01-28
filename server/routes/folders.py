@@ -34,7 +34,7 @@ async def list_folders(limit: int = 100, skip: int = 0):
 @router.get("/{folder_id}", response_model=Folder)
 async def get_folder(folder_id: str):
     """Get a specific folder"""
-    if not len(folder_id) == 24:
+    if len(folder_id) != 24:
         raise HTTPException(status_code=404, detail="Folder not found")
 
     folder = await Folder.get(folder_id)
@@ -47,7 +47,7 @@ async def get_folder(folder_id: str):
 @router.patch("/{folder_id}", response_model=Folder)
 async def update_folder(folder_id: str, folder_data: FolderUpdate):
     """Update folder metadata"""
-    if not len(folder_id) == 24:
+    if len(folder_id) != 24:
         raise HTTPException(status_code=404, detail="Folder not found")
 
     folder = await Folder.get(folder_id)
@@ -71,7 +71,7 @@ async def update_folder(folder_id: str, folder_data: FolderUpdate):
 @router.delete("/{folder_id}", status_code=204)
 async def delete_folder(folder_id: str):
     """Delete a folder"""
-    if not len(folder_id) == 24:
+    if len(folder_id) != 24:
         raise HTTPException(status_code=404, detail="Folder not found")
 
     folder = await Folder.get(folder_id)
@@ -86,7 +86,7 @@ async def delete_folder(folder_id: str):
 @router.post("/{folder_id}/threads", response_model=Folder)
 async def add_thread_to_folder(folder_id: str, request: AddThreadToFolderRequest):
     """Add a thread/context to a folder"""
-    if not len(folder_id) == 24:
+    if len(folder_id) != 24:
         raise HTTPException(status_code=404, detail="Folder not found")
 
     folder = await Folder.get(folder_id)
@@ -105,7 +105,7 @@ async def add_thread_to_folder(folder_id: str, request: AddThreadToFolderRequest
 @router.delete("/{folder_id}/threads/{thread_id}", response_model=Folder)
 async def remove_thread_from_folder(folder_id: str, thread_id: str):
     """Remove a thread from a folder"""
-    if not len(folder_id) == 24:
+    if len(folder_id) != 24:
         raise HTTPException(status_code=404, detail="Folder not found")
 
     folder = await Folder.get(folder_id)

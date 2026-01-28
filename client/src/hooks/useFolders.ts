@@ -1,4 +1,4 @@
-import { useEffect, useCallback } from "react";
+import { useEffect, useCallback, useRef } from "react";
 import axios from "axios";
 import { useSidebarStore, type SidebarTreeItem } from "../store/useSidebarStore";
 import { FolderIcon, MessageSquare, GitFork } from "lucide-react";
@@ -25,8 +25,16 @@ interface BackendContext {
 
 export function useFolders() {
   const setTreeData = useSidebarStore((state) => state.setTreeData);
+  const hasFetched = useRef(false);
+  const isFetching = useRef(false);
 
-  const fetchFolders = useCallback(async () => {
+  const fetchFolders = useCallback(async (force = false) => {
+    if (!force && hasFetched.current && isFetching.current) {
+      return;
+    }
+    
+    isFetching.current = true;
+    
     try {
       const [foldersRes, contextsRes] = await Promise.all([
         axios.get<BackendFolder[]>("/api/folders/"),
@@ -36,16 +44,9 @@ export function useFolders() {
       const folders = foldersRes.data;
       const contexts = contextsRes.data;
 
-      // Create a map for quick context lookup
       const contextMap = new Map(contexts.map(ctx => [ctx._id, ctx]));
 
-      // Collect folder IDs to expand
-      const folderIdsToExpand = new Set<string>(["all"]);
-      folders.forEach(folder => folderIdsToExpand.add(folder._id));
-
-      // Build folder items with their threads
       const buildFolderTree = (): SidebarTreeItem[] => {
-        // Create "All Threads" folder with all root contexts
         const rootContexts = contexts.filter(ctx => !ctx.folder_id);
 
         const allThreadsTreeItem: SidebarTreeItem = {
@@ -56,7 +57,6 @@ export function useFolders() {
           children: buildThreadTree(rootContexts, contextMap),
         };
 
-        // Create user folders
         const userFolders: SidebarTreeItem[] = folders.map(folder => {
           const folderContexts = contexts.filter(ctx => ctx.folder_id === folder._id);
           return {
@@ -71,12 +71,16 @@ export function useFolders() {
         return [allThreadsTreeItem, ...userFolders];
       };
 
-      setTreeData(buildFolderTree());
+      const folderIdsToExpand = new Set<string>(["all"]);
+      folders.forEach(folder => folderIdsToExpand.add(folder._id));
 
-      // Expand all folders by default
+      setTreeData(buildFolderTree());
       useSidebarStore.getState().setExpandedFolders(folderIdsToExpand);
+      hasFetched.current = true;
     } catch (error) {
       console.error("Failed to fetch folders:", error);
+    } finally {
+      isFetching.current = false;
     }
   }, [setTreeData]);
 
@@ -87,57 +91,88 @@ export function useFolders() {
         description,
         order: 0,
       });
-      await fetchFolders();
-      return response.data._id || response.data.id;
+      
+      const newFolderId = response.data._id || response.data.id;
+      
+      const newFolder: SidebarTreeItem = {
+        id: newFolderId,
+        name,
+        icon: FolderIcon,
+        type: "folder",
+        children: [],
+      };
+      
+      setTreeData((prevData) => [...prevData, newFolder]);
+      
+      await fetchFolders(true);
+      
+      return newFolderId;
     } catch (error) {
       console.error("Failed to create folder:", error);
+      await fetchFolders(true);
       return null;
     }
-  }, [fetchFolders]);
+  }, [setTreeData, fetchFolders]);
 
   const renameFolder = useCallback(async (folderId: string, newName: string) => {
     try {
       await axios.patch(`/api/folders/${folderId}`, {
         name: newName,
       });
-      await fetchFolders();
+      
+      setTreeData((prevData) => 
+        prevData.map(item => 
+          item.id === folderId ? { ...item, name: newName } : item
+        )
+      );
+      
+      await fetchFolders(true);
     } catch (error) {
       console.error("Failed to rename folder:", error);
+      await fetchFolders(true);
     }
-  }, [fetchFolders]);
+  }, [setTreeData, fetchFolders]);
 
   const deleteFolder = useCallback(async (folderId: string) => {
     try {
       await axios.delete(`/api/folders/${folderId}`);
-      await fetchFolders();
+      
+      setTreeData((prevData) => prevData.filter(item => item.id !== folderId));
+      
+      await fetchFolders(true);
     } catch (error) {
       console.error("Failed to delete folder:", error);
+      await fetchFolders(true);
     }
-  }, [fetchFolders]);
+  }, [setTreeData, fetchFolders]);
 
   const addThreadToFolder = useCallback(async (folderId: string, threadId: string) => {
     try {
       await axios.post(`/api/folders/${folderId}/threads`, {
         thread_id: threadId,
       });
-      await fetchFolders();
+      
+      await fetchFolders(true);
     } catch (error) {
       console.error("Failed to add thread to folder:", error);
+      await fetchFolders(true);
     }
   }, [fetchFolders]);
 
   const removeThreadFromFolder = useCallback(async (folderId: string, threadId: string) => {
     try {
       await axios.delete(`/api/folders/${folderId}/threads/${threadId}`);
-      await fetchFolders();
+      
+      await fetchFolders(true);
     } catch (error) {
       console.error("Failed to remove thread from folder:", error);
+      await fetchFolders(true);
     }
   }, [fetchFolders]);
 
   useEffect(() => {
     fetchFolders();
-  }, [fetchFolders]);
+  }, []);
 
   return {
     fetchFolders,

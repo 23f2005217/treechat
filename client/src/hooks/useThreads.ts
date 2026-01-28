@@ -1,4 +1,4 @@
-import { useEffect, useCallback } from "react";
+import { useEffect, useCallback, useRef } from "react";
 import axios from "axios";
 import { useSidebarStore, type SidebarTreeItem } from "../store/useSidebarStore";
 import { MessageSquare, Folder, GitFork } from "lucide-react";
@@ -16,26 +16,30 @@ export type ForkType = "summary" | "full" | "empty";
 
 export function useThreads() {
   const setTreeData = useSidebarStore((state) => state.setTreeData);
+  const hasFetched = useRef(false);
+  const isFetching = useRef(false);
 
-  const fetchThreads = useCallback(async () => {
+  const fetchThreads = useCallback(async (force = false) => {
+    if (!force && hasFetched.current && isFetching.current) {
+      return;
+    }
+    
+    isFetching.current = true;
+    
     try {
       const response = await axios.get<BackendContext[]>("/api/contexts/");
       const contexts = response.data;
       
-      // Create a map for quick lookup
       const contextMap = new Map(contexts.map(ctx => [ctx._id, ctx]));
       
-      // Separate root threads from forked threads
       const rootThreads = contexts.filter(ctx => !ctx.parent_context_id);
       const forkedThreads = contexts.filter(ctx => ctx.parent_context_id);
       
-      // Build nested structure with fork context
       const buildThreadItem = (ctx: BackendContext): SidebarTreeItem => {
         const children = forkedThreads
           .filter(child => child.parent_context_id === ctx._id)
           .map(child => buildThreadItem(child));
         
-        // Get parent context info for forks
         let parentContextId = null;
         let parentTitle = null;
         let forkType = null;
@@ -74,41 +78,94 @@ export function useThreads() {
           children: threads,
         },
       ]);
+      
+      hasFetched.current = true;
     } catch (error) {
       console.error("Failed to fetch threads:", error);
+    } finally {
+      isFetching.current = false;
     }
   }, [setTreeData]);
 
   const createThread = useCallback(async (title: string): Promise<string | null> => {
     try {
       const response = await axios.post("/api/contexts/", { title });
-      await fetchThreads();
-      return response.data._id || response.data.id;
+      const newThreadId = response.data._id || response.data.id;
+      
+      const newThread: SidebarTreeItem = {
+        id: newThreadId,
+        name: title || "Untitled Thread",
+        icon: MessageSquare,
+        type: "thread" as const,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      };
+      
+      setTreeData((prevData) => 
+        prevData.map(item => 
+          item.id === "all" ? {
+            ...item,
+            children: [...(item.children || []), newThread]
+          } : item
+        )
+      );
+      
+      await fetchThreads(true);
+      return newThreadId;
     } catch (error) {
       console.error("Failed to create thread:", error);
+      await fetchThreads(true);
       return null;
     }
-  }, [fetchThreads]);
+  }, [setTreeData, fetchThreads]);
 
   const renameThread = useCallback(async (threadId: string, newTitle: string) => {
     try {
       await axios.patch(`/api/contexts/${threadId}`, null, {
         params: { title: newTitle }
       });
-      await fetchThreads();
+      
+      const updateThread = (items: SidebarTreeItem[]): SidebarTreeItem[] => {
+        return items.map(item => {
+          if (item.type === "thread" && item.id === threadId) {
+            return { ...item, name: newTitle };
+          }
+          if (item.children) {
+            return { ...item, children: updateThread(item.children) };
+          }
+          return item;
+        });
+      };
+      
+      setTreeData(updateThread);
+      
+      await fetchThreads(true);
     } catch (error) {
       console.error("Failed to rename thread:", error);
+      await fetchThreads(true);
     }
-  }, [fetchThreads]);
+  }, [setTreeData, fetchThreads]);
 
   const deleteThread = useCallback(async (threadId: string) => {
     try {
       await axios.delete(`/api/contexts/${threadId}`);
-      await fetchThreads();
+      
+      const removeThread = (items: SidebarTreeItem[]): SidebarTreeItem[] => {
+        return items
+          .filter(item => !(item.type === "thread" && item.id === threadId))
+          .map(item => 
+            item.children ? { ...item, children: removeThread(item.children) } : item
+          );
+      };
+      
+      setTreeData(removeThread);
+      
+      await fetchThreads(true);
     } catch (error) {
       console.error("Failed to delete thread:", error);
+      await fetchThreads(true);
     }
-  }, [fetchThreads]);
+  }, [setTreeData, fetchThreads]);
 
   const forkThread = useCallback(async (
     sourceContextId: string,
@@ -123,17 +180,46 @@ export function useThreads() {
         fork_type: forkType,
         title,
       });
-      await fetchThreads();
-      return response.data._id || response.data.id;
+      const newThreadId = response.data._id || response.data.id;
+      
+      const newFork: SidebarTreeItem = {
+        id: newThreadId,
+        name: title,
+        icon: GitFork,
+        type: "thread" as const,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      };
+      
+      const addForkToThread = (items: SidebarTreeItem[]): SidebarTreeItem[] => {
+        return items.map(item => {
+          if (item.type === "thread" && item.id === sourceContextId) {
+            return {
+              ...item,
+              children: [...(item.children || []), newFork]
+            };
+          }
+          if (item.children) {
+            return { ...item, children: addForkToThread(item.children) };
+          }
+          return item;
+        });
+      };
+      
+      setTreeData(addForkToThread);
+      
+      await fetchThreads(true);
+      return newThreadId;
     } catch (error) {
       console.error("Failed to fork thread:", error);
+      await fetchThreads(true);
       return null;
     }
-  }, [fetchThreads]);
+  }, [setTreeData, fetchThreads]);
 
   useEffect(() => {
     fetchThreads();
-  }, [fetchThreads]);
+  }, []);
 
     return {
       fetchThreads,
@@ -142,5 +228,5 @@ export function useThreads() {
       deleteThread,
       forkThread,
     };
-}
+  }
 

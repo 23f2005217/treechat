@@ -12,7 +12,7 @@ interface ContextPanelProps {
 export function ContextPanel({ contextItems, isCollapsed, onToggle, onRemoveItem }: ContextPanelProps) {
   if (isCollapsed) {
     return (
-      <div className="w-12 border-l bg-muted/50 flex items-center justify-center">
+      <div className="hidden lg:flex w-12 border-l bg-muted/50 flex-shrink-0 items-center justify-center">
         <button
           onClick={onToggle}
           className="p-2 hover:bg-accent rounded-lg"
@@ -25,7 +25,7 @@ export function ContextPanel({ contextItems, isCollapsed, onToggle, onRemoveItem
   }
 
   return (
-    <div className="w-80 border-l bg-muted/50 flex flex-col">
+    <div className="hidden lg:flex w-80 border-l bg-muted/50 flex-shrink-0 flex-col">
       {/* Header */}
       <div className="p-4 border-b flex items-center justify-between">
         <h3 className="font-semibold text-foreground">Active Context</h3>

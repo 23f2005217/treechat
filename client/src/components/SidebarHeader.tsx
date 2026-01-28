@@ -8,9 +8,10 @@ interface SidebarHeaderProps {
   onToggle: () => void;
   onAddThread: () => void;
   onAddFolder: () => void;
+  isMobile?: boolean;
 }
 
-export function SidebarHeader({ isCollapsed, onToggle, onAddThread, onAddFolder }: SidebarHeaderProps) {
+export function SidebarHeader({ isCollapsed, onToggle, onAddThread, onAddFolder, isMobile = false }: SidebarHeaderProps) {
   if (isCollapsed) {
     return (
       <div className="flex flex-col items-center py-4">
@@ -37,18 +38,20 @@ export function SidebarHeader({ isCollapsed, onToggle, onAddThread, onAddFolder 
   }
 
   return (
-    <div className="p-4 border-b space-y-3">
+    <div className="p-3 sm:p-4 border-b space-y-2 sm:space-y-3">
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-semibold text-foreground">Threads</h2>
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={onToggle}
-          aria-label="Collapse sidebar"
-          className="h-8 w-8"
-        >
-          <Folder className="h-4 w-4" />
-        </Button>
+        {!isMobile && (
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={onToggle}
+            aria-label="Collapse sidebar"
+            className="h-8 w-8"
+          >
+            <Folder className="h-4 w-4" />
+          </Button>
+        )}
       </div>
 
       <Button className="w-full" size="sm" onClick={onAddThread}>
@@ -80,7 +83,7 @@ function SidebarSearch() {
         placeholder="Search threads..."
         value={searchQuery}
         onChange={(e) => setSearchQuery(e.target.value)}
-        className="pl-9 h-9"
+        className="pl-9 h-9 text-sm"
       />
       {searchQuery && (
         <Button

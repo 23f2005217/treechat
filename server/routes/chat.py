@@ -76,9 +76,65 @@ async def chat(request: ChatRequest):
             }
         )
 
-    # 4. Generate response using LLM if possible, otherwise fallback
+    # 4. Gather context messages if this is a forked thread
+    context_messages = []
+    if request.context_id:
+        try:
+            context = await Context.get(request.context_id)
+            if context:
+                logger.info(f"Context {context.id} has fork_type: {context.fork_type}")
+                # Check if this context was created from a fork
+                if context.fork_type:
+                    if context.fork_type.value == "summary":
+                        # Add summary as system message (summary was copied to this context during fork)
+                        if context.summary:
+                            context_messages.append(
+                                {
+                                    "role": "system",
+                                    "content": f"Previous conversation context: {context.summary}",
+                                }
+                            )
+                            logger.info(
+                                f"Added summary from context: {context.summary[:100]}..."
+                            )
+                    elif context.fork_type.value == "full":
+                        # Add all messages from parent context
+                        if context.parent_context_id:
+                            parent_messages = (
+                                await Message.find(
+                                    Message.context_id == context.parent_context_id
+                                )
+                                .sort("+created_at")
+                                .to_list()
+                            )
+                            logger.info(
+                                f"Adding {len(parent_messages)} messages from parent context"
+                            )
+                            for msg in parent_messages:
+                                context_messages.append(
+                                    {"role": msg.role.value, "content": msg.content}
+                                )
+                # Also include messages from this context (non-forked threads)
+                current_context_messages = (
+                    await Message.find(Message.context_id == request.context_id)
+                    .sort("+created_at")
+                    .to_list()
+                )
+                for msg in current_context_messages:
+                    # Only include messages that were created before this new user message
+                    if msg.id != user_message.id:
+                        context_messages.append(
+                            {"role": msg.role.value, "content": msg.content}
+                        )
+                logger.info(
+                    f"Total context messages to send to LLM: {len(context_messages)}"
+                )
+        except Exception as e:
+            logger.warning(f"Failed to fetch context: {str(e)}")
+
+    # 5. Generate response using LLM if possible, otherwise fallback
     try:
-        messages = [{"role": "user", "content": request.message}]
+        messages = context_messages + [{"role": "user", "content": request.message}]
         response_text = await generate_response(messages)
     except Exception:
         response_text = _generate_response(task_data, created_tasks)

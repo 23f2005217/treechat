@@ -121,3 +121,86 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Markdown content styles */
+.markdown-body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif;
+  font-size: 14px;
+  line-height: 1.6;
+  word-wrap: break-word;
+}
+
+/* Code block styles */
+.markdown-body pre {
+  background-color: #1e1e1e;
+  border-radius: 8px;
+  padding: 16px;
+  overflow-x: auto;
+  margin: 12px 0;
+}
+
+.markdown-body pre code {
+  background-color: transparent;
+  padding: 0;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.markdown-body code {
+  background-color: rgba(175, 184, 193, 0.2);
+  border-radius: 4px;
+  padding: 2px 6px;
+  font-family: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
+  font-size: 85%;
+}
+
+/* Inline code in dark mode */
+.dark .markdown-body code {
+  background-color: rgba(110, 118, 129, 0.4);
+}
+
+/* Math expression styles */
+.markdown-body .katex {
+  font-size: 1.1em;
+}
+
+.markdown-body .katex-display {
+  margin: 1em 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+/* Emoji styles */
+.markdown-body .emoji {
+  font-family: 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+  font-style: normal;
+  font-weight: normal;
+}
+
+/* Ensure emojis render properly */
+.markdown-body {
+  font-variant-emoji: emoji;
+}
+
+/* Syntax highlighting adjustments for dark mode */
+.dark .markdown-body pre {
+  background-color: #0d1117;
+}
+
+/* Table styles */
+.markdown-body table {
+  display: block;
+  width: 100%;
+  overflow: auto;
+}
+
+/* Task list styles */
+.markdown-body input[type="checkbox"] {
+  margin-right: 8px;
+}
+
+/* Strikethrough for completed tasks */
+.markdown-body li:has(input[type="checkbox"]:checked) {
+  text-decoration: line-through;
+  opacity: 0.6;
+}

@@ -57,7 +57,9 @@ export const useThemeStore = create<ThemeState>()(
   )
 );
 
-applyTheme(useThemeStore.getState().theme);
+export const initializeTheme = () => {
+  applyTheme(useThemeStore.getState().theme);
+};
 
 if (typeof window !== "undefined") {
   const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");

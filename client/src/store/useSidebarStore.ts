@@ -46,7 +46,7 @@ interface SidebarState {
 
   setNewItemName: (name: string) => void;
 
-  setTreeData: (data: SidebarTreeItem[]) => void;
+  setTreeData: (data: SidebarTreeItem[] | ((prev: SidebarTreeItem[]) => SidebarTreeItem[])) => void;
 
   setExpandedFolders: (folders: Set<string>) => void;
   expandAllFolders: () => void;
@@ -70,7 +70,7 @@ const initialTreeData: SidebarTreeItem[] = [
 export const useSidebarStore = create<SidebarState>((set, get) => ({
   treeData: initialTreeData,
   searchQuery: "",
-  expandedFolders: new Set<string>([]), // Start with no folders expanded, will be populated
+  expandedFolders: new Set<string>(["all"]),
   createDialog: {
     isOpen: false,
     parentId: null,
@@ -108,7 +108,9 @@ export const useSidebarStore = create<SidebarState>((set, get) => ({
 
   setNewItemName: (name) => set({ newItemName: name }),
 
-  setTreeData: (data) => set({ treeData: data }),
+  setTreeData: (data) => set({ 
+    treeData: typeof data === 'function' ? data(get().treeData) : data 
+  }),
 
   expandAllFolders: () => {
     const { treeData } = get();
@@ -214,3 +216,10 @@ export const useSidebarStore = create<SidebarState>((set, get) => ({
   },
 
 }));
+
+export const selectTreeData = (state: SidebarState) => state.treeData;
+export const selectSearchQuery = (state: SidebarState) => state.searchQuery;
+export const selectExpandedFolders = (state: SidebarState) => state.expandedFolders;
+export const selectCreateDialog = (state: SidebarState) => state.createDialog;
+export const selectRenameDialog = (state: SidebarState) => state.renameDialog;
+export const selectDeleteDialog = (state: SidebarState) => state.deleteDialog;
